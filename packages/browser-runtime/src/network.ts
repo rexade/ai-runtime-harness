@@ -7,7 +7,6 @@ interface MockEntry {
 }
 
 export class NetworkCapture {
-  private readonly NOT_FOUND = Symbol('not-found')
   private events: NetworkEvent[] = []
   private mocks: MockEntry[] = []
   private originalFetch?: typeof window.fetch
@@ -51,5 +50,6 @@ export class NetworkCapture {
 
   uninstallFetchInterceptor() {
     if (this.originalFetch) window.fetch = this.originalFetch
+    this.originalFetch = undefined
   }
 }
