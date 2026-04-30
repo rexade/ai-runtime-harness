@@ -13,7 +13,18 @@ const cardStyle = {
 } satisfies React.CSSProperties
 
 export function App() {
-  const { tasks, addTask, toggleTask, clearCompleted } = useTaskStore()
+  const {
+    tasks,
+    addTask,
+    clearCompleted,
+    errorMessage,
+    lastSyncSource,
+    markAllDone,
+    resetDemo,
+    syncStatus,
+    syncTasks,
+    toggleTask,
+  } = useTaskStore()
   const [input, setInput] = useState('')
 
   function handleAdd() {
@@ -25,6 +36,10 @@ export function App() {
   }
 
   const remaining = tasks.filter((task) => !task.done).length
+  const statusColor = syncStatus === 'error' ? '#b91c1c' : syncStatus === 'ready' ? '#166534' : '#9a3412'
+  const statusCopy = errorMessage
+    ? `${syncStatus} from ${lastSyncSource} · ${errorMessage}`
+    : `${syncStatus} from ${lastSyncSource}`
 
   return (
     <main style={{ minHeight: '100vh', padding: '24px', background: 'linear-gradient(180deg, #fffbeb 0%, #fff 55%, #fff7ed 100%)' }}>
@@ -36,8 +51,25 @@ export function App() {
           Task Dashboard
         </h1>
         <p style={{ margin: '0 0 20px', color: '#7c2d12' }}>
-          A small React + Zustand app for inspecting DOM, component state, store state, console, and network data.
+          A small React + Zustand app for inspecting DOM, component state, store state, console, network data, and semantic actions.
         </p>
+
+        <div
+          id="sync-status"
+          data-status={syncStatus}
+          style={{
+            marginBottom: 16,
+            padding: '10px 12px',
+            borderRadius: 14,
+            background: errorMessage ? '#fef2f2' : '#fff7ed',
+            border: `1px solid ${errorMessage ? '#fecaca' : '#fed7aa'}`,
+            color: statusColor,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Sync status: {statusCopy}
+        </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
           <input
@@ -68,6 +100,52 @@ export function App() {
             }}
           >
             Add task
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+          <button
+            id="sync-btn"
+            onClick={() => { void syncTasks() }}
+            disabled={syncStatus === 'loading'}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid #fdba74',
+              background: '#fff',
+              color: '#9a3412',
+              cursor: syncStatus === 'loading' ? 'progress' : 'pointer',
+            }}
+          >
+            {syncStatus === 'loading' ? 'Syncing…' : 'Sync mocked API'}
+          </button>
+          <button
+            id="mark-all-btn"
+            onClick={markAllDone}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid #fdba74',
+              background: '#fff',
+              color: '#9a3412',
+              cursor: 'pointer',
+            }}
+          >
+            Mark all done
+          </button>
+          <button
+            id="reset-btn"
+            onClick={resetDemo}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid #fdba74',
+              background: '#fff',
+              color: '#9a3412',
+              cursor: 'pointer',
+            }}
+          >
+            Reset demo
           </button>
         </div>
 

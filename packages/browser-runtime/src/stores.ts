@@ -1,4 +1,4 @@
-import type { StoreSnapshot } from '@ai-runtime-harness/protocol'
+import type { StoreMetadata, StoreSnapshot } from '@ai-runtime-harness/protocol'
 
 interface StoreEntry {
   getState: () => unknown
@@ -23,6 +23,8 @@ export class StoresModule {
     return Array.from(this.entries.entries(), ([name, entry]) => ({
       name,
       state: entry.getState(),
+      mutable: typeof entry.setState === 'function',
+      dispatchable: typeof entry.dispatch === 'function',
     }))
   }
 
@@ -33,7 +35,17 @@ export class StoresModule {
     return {
       name,
       state: entry.getState(),
+      mutable: typeof entry.setState === 'function',
+      dispatchable: typeof entry.dispatch === 'function',
     }
+  }
+
+  describeAll(): StoreMetadata[] {
+    return Array.from(this.entries.entries(), ([name, entry]) => ({
+      name,
+      mutable: typeof entry.setState === 'function',
+      dispatchable: typeof entry.dispatch === 'function',
+    }))
   }
 
   setState(name: string, patch: unknown) {

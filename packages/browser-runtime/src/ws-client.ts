@@ -1,30 +1,40 @@
-import type { HarnessRequest, HarnessResponse, RuntimeError } from '@ai-runtime-harness/protocol'
+import type {
+  HarnessRequest,
+  HarnessResponse,
+  HarnessActionSource,
+  HarnessSurfaceType,
+  RuntimeError,
+} from '@ai-runtime-harness/protocol'
 import type { DomModule } from './dom'
 import type { ConsoleCapture } from './console'
 import type { NetworkCapture } from './network'
 import type { ReactReader } from './react'
-import type { StoresModule } from './stores'
-
-type HarnessAction = (args: unknown) => unknown | Promise<unknown>
-
-interface HarnessGlobals {
-  actions?: Record<string, HarnessAction>
-  errors?: RuntimeError[]
-}
-
-interface HarnessWindow extends Window {
-  __AI_HARNESS__?: HarnessGlobals
-}
+import {
+  assertHarnessActionAvailable,
+  buildHarnessManifest,
+  dispatchHarnessStoreAction,
+  ensureHarnessState,
+  getHarnessAffordances,
+  getHarnessSurfaceConfig,
+  getHarnessStoreSnapshot,
+  getHarnessStoreSnapshots,
+  listHarnessSurfaces,
+  selectHarnessSurface,
+  setHarnessStoreState,
+  updateHarnessSessionState,
+} from './harness-state'
 
 export interface Modules {
   dom: DomModule
   console: ConsoleCapture
   network: NetworkCapture
   react: ReactReader
-  stores: StoresModule
 }
 
 export interface ConnectionOptions {
+  onClose?: () => void
+  onConnecting?: () => void
+  onError?: (error: Event | Error) => void
   onOpen?: () => void
   url?: string
 }
@@ -50,7 +60,22 @@ export class CommandDispatcher {
       case 'GET_REACT_TREE':
         return this.mods.react.getTree()
       case 'GET_STORE':
-        return payload?.name ? this.mods.stores.get(String(payload.name)) : this.mods.stores.getAll()
+        return payload?.name
+          ? getHarnessStoreSnapshot(String(payload.name), this.asOptionalString(payload?.surfaceId))
+          : getHarnessStoreSnapshots(this.asOptionalString(payload?.surfaceId))
+      case 'GET_ACTIONS':
+        return getHarnessAffordances(this.asOptionalString(payload?.surfaceId))
+      case 'GET_MANIFEST':
+        return buildHarnessManifest(this.asOptionalString(payload?.surfaceId))
+      case 'LIST_SURFACES':
+        return listHarnessSurfaces()
+      case 'SELECT_SURFACE': {
+        const surfaceId = this.requireString(payload, 'surfaceId')
+        selectHarnessSurface(surfaceId)
+        return buildHarnessManifest(surfaceId)
+      }
+      case 'GET_SESSION_STATE':
+        return this.getGlobals().session
       case 'GET_CONSOLE':
         return this.mods.console.drain(this.asOptionalNumber(payload?.limit))
       case 'GET_NETWORK':
@@ -71,22 +96,56 @@ export class CommandDispatcher {
         return this.mods.network.addMock(this.requireString(payload, 'pattern'), payload?.response)
       case 'CALL_ACTION': {
         const actionName = this.requireString(payload, 'name')
-        const action = this.getGlobals().actions?.[actionName]
-        if (!action) throw new Error(`Action not registered: ${actionName}`)
-        return await action(payload?.args)
+        const surfaceId = this.asOptionalString(payload?.surfaceId)
+        const action = assertHarnessActionAvailable(actionName, surfaceId)
+        const surface = getHarnessSurfaceConfig(surfaceId)
+        this.recordLastAction(
+          action.metadata.name,
+          this.classifyActionSource(action.metadata.kind, action.metadata.executionPath),
+          this.describeValue(payload?.args),
+          surface.id,
+          surface.name,
+          surface.type,
+        )
+        return await action.fn(payload?.args)
       }
-      case 'SET_STORE_STATE':
-        return this.mods.stores.setState(this.requireString(payload, 'name'), payload?.patch)
-      case 'DISPATCH_STORE_ACTION':
-        return this.mods.stores.dispatch(this.requireString(payload, 'name'), payload?.action)
+      case 'SET_STORE_STATE': {
+        const storeName = this.requireString(payload, 'name')
+        const surfaceId = this.asOptionalString(payload?.surfaceId)
+        const surface = getHarnessSurfaceConfig(surfaceId)
+        this.recordLastAction(
+          'set_store_state',
+          'debug-mutation',
+          `${storeName} ${this.describeValue(payload?.patch)}`.trim(),
+          surface.id,
+          surface.name,
+          surface.type,
+        )
+        return setHarnessStoreState(storeName, payload?.patch, surfaceId)
+      }
+      case 'DISPATCH_STORE_ACTION': {
+        const storeName = this.requireString(payload, 'name')
+        const surfaceId = this.asOptionalString(payload?.surfaceId)
+        const surface = getHarnessSurfaceConfig(surfaceId)
+        this.recordLastAction(
+          'dispatch_store_action',
+          'debug-mutation',
+          `${storeName} ${this.describeValue(payload?.action)}`.trim(),
+          surface.id,
+          surface.name,
+          surface.type,
+        )
+        return dispatchHarnessStoreAction(storeName, payload?.action, surfaceId)
+      }
+      case 'SET_SESSION_STATE':
+        return updateHarnessSessionState(this.requireRecord(payload, 'patch'))
       default:
         throw new Error(`Unknown command: ${req.type}`)
     }
   }
 
-  private getGlobals(): HarnessGlobals {
-    const win = window as HarnessWindow
-    return win.__AI_HARNESS__ ?? {}
+  private getGlobals() {
+    return ensureHarnessState()
   }
 
   private asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -116,9 +175,55 @@ export class CommandDispatcher {
     return value
   }
 
+  private requireRecord(payload: Record<string, unknown> | undefined, key: string): Record<string, unknown> {
+    const value = payload?.[key]
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error(`Missing object payload field: ${key}`)
+    }
+    return value as Record<string, unknown>
+  }
+
   private toErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message
     return String(error)
+  }
+
+  private classifyActionSource(kind: string, executionPath: string): HarnessActionSource {
+    if (kind === 'debug' || kind === 'mutation' || executionPath === 'state-mutation') {
+      return 'debug-mutation'
+    }
+
+    return 'semantic-affordance'
+  }
+
+  private describeValue(value: unknown) {
+    if (value === undefined) return ''
+
+    const serialized = JSON.stringify(value)
+    if (!serialized) return ''
+
+    return serialized.length > 140 ? `${serialized.slice(0, 137)}...` : serialized
+  }
+
+  private recordLastAction(
+    name: string,
+    source: HarnessActionSource,
+    detail: string,
+    surfaceId: string,
+    surfaceName: string,
+    surfaceType: HarnessSurfaceType,
+  ) {
+    updateHarnessSessionState({
+      lastAction: {
+        name,
+        source,
+        detail: detail || undefined,
+        surfaceId,
+        surfaceName,
+        surfaceType,
+        timestamp: Date.now(),
+      },
+    })
   }
 }
 
@@ -126,6 +231,7 @@ export function connectToServer(dispatcher: CommandDispatcher, options: Connecti
   const url = options.url ?? 'ws://localhost:7777'
 
   const connect = () => {
+    options.onConnecting?.()
     const ws = new WebSocket(url)
 
     ws.onopen = () => {
@@ -138,7 +244,12 @@ export function connectToServer(dispatcher: CommandDispatcher, options: Connecti
       ws.send(JSON.stringify(response))
     }
 
+    ws.onerror = (event) => {
+      options.onError?.(event)
+    }
+
     ws.onclose = () => {
+      options.onClose?.()
       window.setTimeout(connect, 2000)
     }
   }

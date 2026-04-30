@@ -10,7 +10,11 @@
     "start": "node --import tsx/esm src/index.ts"
   },
   "dependencies": {
+    "@ai-runtime-harness/browser-driver": "workspace:*",
+    "@ai-runtime-harness/explorer": "workspace:*",
     "@ai-runtime-harness/protocol": "workspace:*",
+    "@ai-runtime-harness/recorder": "workspace:*",
+    "@ai-runtime-harness/replay": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.0"

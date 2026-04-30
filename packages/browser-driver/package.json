@@ -1,0 +1,17 @@
+{
+  "name": "@ai-runtime-harness/browser-driver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "playwright-core": "^1.59.1"
+  },
+  "devDependencies": {
+    "vitest": "*"
+  }
+}

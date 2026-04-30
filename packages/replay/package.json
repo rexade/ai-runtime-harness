@@ -1,0 +1,19 @@
+{
+  "name": "@ai-runtime-harness/replay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ai-runtime-harness/explorer": "workspace:*",
+    "@ai-runtime-harness/protocol": "workspace:*",
+    "@ai-runtime-harness/recorder": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "*"
+  }
+}

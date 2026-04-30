@@ -7,6 +7,20 @@ describe('HarnessRequest', () => {
     expect(req.type).toBe('GET_DOM')
   })
 
+  it('accepts a GET_ACTIONS request shape', () => {
+    const req: HarnessRequest = { id: 'def', type: 'GET_ACTIONS' }
+    expect(req.type).toBe('GET_ACTIONS')
+  })
+
+  it('accepts a SET_SESSION_STATE request shape', () => {
+    const req: HarnessRequest = {
+      id: 'ghi',
+      type: 'SET_SESSION_STATE',
+      payload: { patch: { recording: true, mode: 'recording' } },
+    }
+    expect(req.type).toBe('SET_SESSION_STATE')
+  })
+
   it('accepts a CLICK request shape', () => {
     const req: HarnessRequest = { id: 'xyz', type: 'CLICK', payload: { selector: '#submit' } }
     expect(req.type).toBe('CLICK')

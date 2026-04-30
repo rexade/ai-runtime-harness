@@ -19,6 +19,8 @@ describe('StoresModule', () => {
     expect(all).toHaveLength(1)
     expect(all[0].name).toBe('counter')
     expect(all[0].state).toEqual({ count: 0 })
+    expect(all[0].mutable).toBe(false)
+    expect(all[0].dispatchable).toBe(false)
   })
 
   it('reads a single store by name', () => {
@@ -35,6 +37,7 @@ describe('StoresModule', () => {
     })
     stores.setState('counter', { count: 5 })
     expect(stores.get('counter')!.state).toEqual({ count: 5 })
+    expect(stores.get('counter')!.mutable).toBe(true)
   })
 
   it('throws when setting state on a store without setter', () => {
@@ -48,5 +51,6 @@ describe('StoresModule', () => {
     stores.dispatch('redux', { type: 'INCREMENT' })
     expect(dispatched).toHaveLength(1)
     expect(dispatched[0]).toEqual({ type: 'INCREMENT' })
+    expect(stores.get('redux')!.dispatchable).toBe(true)
   })
 })

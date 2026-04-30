@@ -6,7 +6,11 @@
     "lib": ["ES2020"],
     "baseUrl": ".",
     "paths": {
-      "@ai-runtime-harness/protocol": ["../protocol/dist/index.d.ts"]
+      "@ai-runtime-harness/browser-driver": ["../browser-driver/dist/index.d.ts"],
+      "@ai-runtime-harness/explorer": ["../explorer/dist/index.d.ts"],
+      "@ai-runtime-harness/protocol": ["../protocol/dist/index.d.ts"],
+      "@ai-runtime-harness/recorder": ["../recorder/dist/index.d.ts"],
+      "@ai-runtime-harness/replay": ["../replay/dist/index.d.ts"]
     }
   },
   "include": ["src"]

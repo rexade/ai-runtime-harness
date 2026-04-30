@@ -1,20 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { Bridge } from '../bridge'
-
-function textResult(text: string) {
-  return {
-    content: [{ type: 'text' as const, text }],
-  }
-}
-
-function notConnected() {
-  return textResult('No browser connected. Open your dev server first.')
-}
-
-function ok(result: unknown) {
-  return textResult(JSON.stringify(result ?? null, null, 2))
-}
+import { notConnected, ok } from './shared'
 
 export function registerBrowserTools(server: McpServer, bridge: Bridge) {
   server.registerTool('app.get_dom', {
@@ -36,6 +23,11 @@ export function registerBrowserTools(server: McpServer, bridge: Bridge) {
   }, async ({ name }) => {
     if (!bridge.isConnected()) return notConnected()
     return ok(await bridge.request('GET_STORE', { name }))
+  })
+
+  server.registerTool('app.get_actions', {}, async () => {
+    if (!bridge.isConnected()) return notConnected()
+    return ok(await bridge.request('GET_ACTIONS'))
   })
 
   server.registerTool('app.get_console', {

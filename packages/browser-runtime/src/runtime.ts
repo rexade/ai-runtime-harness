@@ -3,12 +3,18 @@ import { ConsoleCapture } from './console'
 import { NetworkCapture } from './network'
 import { ReactReader } from './react'
 import { CommandDispatcher, connectToServer } from './ws-client'
-import { ensureHarnessState, getHarnessConfig, recordHarnessError } from './harness-state'
+import {
+  ensureHarnessState,
+  getHarnessConfig,
+  recordHarnessError,
+  updateHarnessSessionState,
+} from './harness-state'
 
 export function initializeHarnessRuntime() {
   const state = ensureHarnessState()
   if (state.initialized) return state
   state.initialized = true
+  updateHarnessSessionState({ connection: 'registered' })
 
   const dom = new DomModule()
   const consoleCapture = new ConsoleCapture()
@@ -42,7 +48,6 @@ export function initializeHarnessRuntime() {
     console: consoleCapture,
     network: networkCapture,
     react: reactReader,
-    stores: state.stores,
   })
 
   let connectionStarted = false
@@ -51,10 +56,25 @@ export function initializeHarnessRuntime() {
     if (connectionStarted) return
     connectionStarted = true
 
-    const url = getHarnessConfig().url ?? 'ws://localhost:7777'
+    const config = getHarnessConfig()
+    const url = config.url ?? 'ws://localhost:7777'
     connectToServer(dispatcher, {
       url,
+      onClose: () => {
+        updateHarnessSessionState({ connection: 'closed' })
+        config.onClose?.()
+      },
+      onConnecting: () => {
+        updateHarnessSessionState({ connection: 'connecting' })
+        config.onConnecting?.()
+      },
+      onError: (error) => {
+        updateHarnessSessionState({ connection: 'error' })
+        config.onError?.(error)
+      },
       onOpen: () => {
+        updateHarnessSessionState({ connection: 'connected' })
+        config.onOpen?.()
         console.log(`[AI Harness] connected to ${url}`)
       },
     })

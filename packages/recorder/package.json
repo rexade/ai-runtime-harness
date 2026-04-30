@@ -1,0 +1,17 @@
+{
+  "name": "@ai-runtime-harness/recorder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ai-runtime-harness/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "*"
+  }
+}

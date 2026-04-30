@@ -13,7 +13,13 @@ interface FiberTypeDescriptor {
   type?: FiberTypeDescriptor
 }
 
-type FiberType = FiberTypeDescriptor | string | null | ((...args: unknown[]) => unknown)
+interface FiberComponent {
+  (...args: unknown[]): unknown
+  displayName?: string
+  name?: string
+}
+
+type FiberType = FiberTypeDescriptor | string | null | FiberComponent
 
 interface Fiber {
   type: FiberType
@@ -90,7 +96,7 @@ export class ReactReader {
 
     return {
       name: componentName,
-      props: this.serializeValue(fiber.memoizedProps ?? {}),
+      props: this.serializeProps(fiber.memoizedProps),
       state: this.readState(fiber.memoizedState),
       children: this.collectComponents(fiber.child),
     }
@@ -151,6 +157,11 @@ export class ReactReader {
     return values.length === 1 ? values[0] : values
   }
 
+  private serializeProps(value: Fiber['memoizedProps']): Record<string, unknown> {
+    const serialized = this.serializeValue(value ?? {})
+    return this.isRecord(serialized) ? serialized : {}
+  }
+
   private serializeValue(value: unknown, depth = 0, seen = new WeakSet<object>()): unknown {
     if (value === null || value === undefined) return value
 
@@ -195,5 +206,9 @@ export class ReactReader {
       'memoizedState' in state &&
       'next' in state
     )
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
   }
 }

@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ES2020", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@ai-runtime-harness/explorer": ["../explorer/dist/index.d.ts"],
+      "@ai-runtime-harness/protocol": ["../protocol/dist/index.d.ts"],
+      "@ai-runtime-harness/recorder": ["../recorder/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"]
+}

@@ -23,3 +23,8 @@ Thumbs.db
 # Runtime
 .env
 .env.local
+.demo-*
+.fitness-*
+.sanity-*
+.proof/
+packages/mcp-server/.ai-harness/

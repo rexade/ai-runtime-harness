@@ -1,3 +1,6 @@
+import type { ActionMetadata } from './action'
+import type { HarnessSurfaceType } from './manifest'
+
 export interface DomSnapshot {
   tag: string
   id?: string
@@ -17,6 +20,8 @@ export interface ComponentSnapshot {
 export interface StoreSnapshot {
   name: string
   state: unknown
+  mutable?: boolean
+  dispatchable?: boolean
 }
 
 export interface NetworkEvent {
@@ -43,9 +48,46 @@ export interface RuntimeError {
   timestamp: number
 }
 
+export type HarnessConnectionState =
+  | 'idle'
+  | 'registering'
+  | 'registered'
+  | 'connecting'
+  | 'connected'
+  | 'closed'
+  | 'error'
+
+export type HarnessMode = 'explorer' | 'recording' | 'replay'
+
+export type HarnessActionSource = 'browser-driver' | 'semantic-affordance' | 'debug-mutation'
+
+export interface HarnessLastAction {
+  name: string
+  source: HarnessActionSource
+  detail?: string
+  surfaceId: string | null
+  surfaceName: string | null
+  surfaceType: HarnessSurfaceType | null
+  timestamp: number
+}
+
+export interface HarnessSessionState {
+  sessionId: string | null
+  connection: HarnessConnectionState
+  recording: boolean
+  mode: HarnessMode
+  selectedSurfaceId: string | null
+  selectedSurfaceName: string | null
+  selectedSurfaceType: HarnessSurfaceType | null
+  lastAction: HarnessLastAction | null
+  updatedAt: number
+}
+
 export interface Observation {
   runtime: 'browser'
   time: number
+  actions?: ActionMetadata[]
+  session?: HarnessSessionState
   dom?: DomSnapshot
   components?: ComponentSnapshot[]
   stores?: StoreSnapshot[]
