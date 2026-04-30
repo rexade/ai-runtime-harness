@@ -3,7 +3,11 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "lib": ["ES2020"]
+    "lib": ["ES2020"],
+    "baseUrl": ".",
+    "paths": {
+      "@ai-runtime-harness/protocol": ["../protocol/dist/index.d.ts"]
+    }
   },
   "include": ["src"]
 }
