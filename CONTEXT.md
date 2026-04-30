@@ -62,6 +62,14 @@ _Avoid_: tab, browser session
 A human-visible presentation of the current harness session that makes connection state, selected surface, session id, and last received harness action obvious in the running app.
 _Avoid_: proof artifact, report, hidden overlay
 
+**Proving Lab**:
+A small external repo whose purpose is to stress the harness across multiple interactive surface types without pretending to be a real product.
+_Avoid_: polished demo app, product showcase, end-user application
+
+**Legacy Dogfood Fixture**:
+An older internal validation target kept only to preserve historical checks or narrow regressions after a cleaner proving lab exists.
+_Avoid_: primary demo, canonical proof target, product companion app
+
 **Surface Selection**:
 The explicit choice of which debug surface within a running app becomes the current implicit target for explorer calls that omit `surfaceId`.
 _Avoid_: active tab, global mode, guessed target
@@ -148,6 +156,8 @@ _Avoid_: selector compatibility, incidental stability
 - **Adapter-Assisted Mode** may expose inferred affordances, but recordings and replays should rely on app-owned registered affordances
 - A **Harness Session** is attached to exactly one **Debug Surface** at a time
 - A **Visible AI Session** makes the active **Harness Session** legible to a human watching the same running app
+- A **Proving Lab** is the preferred external validation target for the harness because it isolates harness behavior from product noise
+- A **Legacy Dogfood Fixture** may remain for regression coverage, but it should not define the main product story once a cleaner **Proving Lab** exists
 - A running app may expose multiple **Debug Surfaces**, but only one **Surface Selection** is implicit at a time
 - Action and store registries are surface-scoped roots; duplicate local names across surfaces are valid
 - A **First-Class Debug Surface** exposes a **Capability Manifest** at session start
@@ -214,3 +224,16 @@ _Avoid_: selector compatibility, incidental stability
 - "action succeeded" was used as if input execution were enough - resolved: first-class affordances use a **Success Contract**; otherwise the outcome is **Unverified**.
 - "proof of this case" was used as if it belonged in the manifest - resolved: reusable proof lives in the **Success Contract**; case-specific proof lives in **Scenario Assertions**.
 - "proof" was drifting toward the product center - resolved: the core product is the **AI Interaction Loop**; proof and replay are secondary capabilities.
+
+## Repo roles
+
+- `ai-runtime-harness` is the product repo.
+- `ai-harness-playground` is the primary external **Proving Lab** and the cleanest validation target for multi-surface eyes-and-hands behavior.
+- `demo_phone_application` is a **Legacy Dogfood Fixture**. It may remain useful for historical or narrow regression checks, but it is no longer the main proving target.
+
+## Current proving target
+
+- The preferred external validation target is `../ai-harness-playground`.
+- It is intentionally small and includes four surface types: dashboard, form, canvas game, and network chaos.
+- The harness should be judged primarily by whether it can attach to that repo, discover surfaces, act, observe, and verify outcomes cleanly.
+- The next major product step after that proving lab is a first-class attach flow such as `ai-harness attach <url>`.
