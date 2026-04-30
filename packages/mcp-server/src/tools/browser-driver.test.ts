@@ -23,8 +23,17 @@ describe('registerBrowserDriverTools', () => {
       async screenshot() {
         return { path: 'proof.png', url: 'http://localhost', sessionId: 'session-1' }
       },
+      async getDom() {
+        return { tag: 'body', attrs: {}, children: [] }
+      },
+      async getAccessibilityTree() {
+        return { role: 'WebArea', name: 'Example' }
+      },
       async click(selector: string) {
         return { clicked: selector }
+      },
+      async type(selector: string, text: string) {
+        return { selector, typed: text }
       },
       async press(key: string) {
         return { key }
@@ -90,5 +99,91 @@ describe('registerBrowserDriverTools', () => {
       source: 'browser-driver',
       detail: '#launch',
     })
+  })
+
+  it('records browser-driver provenance for type actions without echoing raw text', async () => {
+    const bridge = new Bridge()
+    bridge.setConnection({
+      send() {},
+    })
+
+    const browser = {
+      async attach() {
+        return { url: 'http://localhost', headless: false, sessionId: 'session-1', attached: true, cdpUrl: 'http://127.0.0.1:9222' }
+      },
+      async open() {
+        return { url: 'http://localhost', headless: false, sessionId: 'session-1' }
+      },
+      async screenshot() {
+        return { path: 'proof.png', url: 'http://localhost', sessionId: 'session-1' }
+      },
+      async getDom() {
+        return { tag: 'body', attrs: {}, children: [] }
+      },
+      async getAccessibilityTree() {
+        return { role: 'WebArea', name: 'Example' }
+      },
+      async click(selector: string) {
+        return { clicked: selector }
+      },
+      async type(selector: string, text: string) {
+        return { selector, typed: text }
+      },
+      async press(key: string) {
+        return { key }
+      },
+      async close() {
+        return undefined
+      },
+    }
+
+    const runtime = {
+      getManifest: vi.fn(async () => ({
+        runtime: 'browser' as const,
+        surfaceId: 'form',
+        surfaceName: 'Login Fault Lab',
+        surfaceType: 'app' as const,
+        protocolVersion: '0.1.0',
+        runtimeVersion: '1.0.0',
+        sessionId: 'session-1',
+        readiness: 'ready' as const,
+        current: true,
+        stores: [],
+        affordances: [],
+        capabilities: {
+          dom: true,
+          reactTree: true,
+          stores: true,
+          console: true,
+          network: true,
+          errors: true,
+          screenshots: true,
+          browserInput: true,
+          frameControl: false,
+        },
+      })),
+      setSessionState: vi.fn(async () => undefined),
+    }
+
+    const session = new HarnessSessionManager()
+    const recorder = {
+      async record(_tool: string, _args: Record<string, unknown>, fn: () => Promise<unknown>) {
+        return await fn()
+      },
+    }
+    const server = new McpServer({ name: 'test', version: '0.1.0' })
+
+    registerBrowserDriverTools(server, bridge, browser as never, runtime as never, session, recorder as never)
+
+    const tools = (server as unknown as { _registeredTools: ToolRegistry })._registeredTools
+    await tools['browser.type'].handler({ selector: '#password', text: 'super-secret-password' })
+
+    expect(runtime.setSessionState).toHaveBeenCalledWith(expect.objectContaining({
+      lastAction: expect.objectContaining({
+        name: 'browser.type',
+        source: 'browser-driver',
+        detail: '#password (21 chars)',
+      }),
+    }))
   })
 })

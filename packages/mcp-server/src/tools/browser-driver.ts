@@ -125,6 +125,34 @@ export function registerBrowserDriverTools(
     return ok(result)
   })
 
+  server.registerTool('browser.get_dom', {
+    inputSchema: {
+      selector: z.string().optional(),
+    },
+  }, async ({ selector }) => {
+    const result = await recorder.record(
+      'browser.get_dom',
+      { selector },
+      () => browser.getDom(selector),
+    )
+
+    return ok(result)
+  })
+
+  server.registerTool('browser.get_accessibility_tree', {
+    inputSchema: {
+      selector: z.string().optional(),
+    },
+  }, async ({ selector }) => {
+    const result = await recorder.record(
+      'browser.get_accessibility_tree',
+      { selector },
+      () => browser.getAccessibilityTree(selector),
+    )
+
+    return ok(result)
+  })
+
   server.registerTool('browser.click', {
     inputSchema: {
       selector: z.string(),
@@ -141,6 +169,28 @@ export function registerBrowserDriverTools(
       name: 'browser.click',
       source: 'browser-driver',
       detail: selector,
+    })
+
+    return ok(result)
+  })
+
+  server.registerTool('browser.type', {
+    inputSchema: {
+      selector: z.string(),
+      text: z.string(),
+    },
+  }, async ({ selector, text }) => {
+    const result = await recorder.record(
+      'browser.type',
+      { selector, text },
+      () => browser.type(selector, text),
+      { replayable: true },
+    )
+
+    await pushLastAction(bridge, runtime, session, {
+      name: 'browser.type',
+      source: 'browser-driver',
+      detail: `${selector} (${text.length} chars)`,
     })
 
     return ok(result)

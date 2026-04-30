@@ -59,6 +59,29 @@ export interface BrowserScreenshotResult {
   sessionId: string | null
 }
 
+export interface BrowserDomSnapshot {
+  tag: string
+  id?: string
+  className?: string
+  text?: string
+  attrs: Record<string, string>
+  children: BrowserDomSnapshot[]
+}
+
+export interface BrowserAccessibilitySnapshot {
+  role?: string
+  name?: string
+  value?: string | number
+  checked?: boolean | 'mixed'
+  disabled?: boolean
+  expanded?: boolean
+  focused?: boolean
+  pressed?: boolean | 'mixed'
+  readonly?: boolean
+  selected?: boolean
+  children?: BrowserAccessibilitySnapshot[]
+}
+
 export interface BrowserSessionInfo {
   sessionId: string | null
   url: string | null
@@ -220,6 +243,144 @@ export class BrowserDriver {
       url: page.url(),
       sessionId: this.sessionId,
     }
+  }
+
+  async type(selector: string, text: string) {
+    const page = this.requirePage()
+    await page.locator(selector).fill(text)
+    return {
+      selector,
+      typed: text,
+      url: page.url(),
+      sessionId: this.sessionId,
+    }
+  }
+
+  async getDom(selector?: string) {
+    const page = this.requirePage()
+    return page.evaluate((targetSelector) => {
+      const root = targetSelector ? document.querySelector(targetSelector) : document.body
+      if (!root) return null
+
+      function serializeNode(el: Element, depth = 0): BrowserDomSnapshot {
+        const attrs: Record<string, string> = {}
+        for (const attr of Array.from(el.attributes)) {
+          attrs[attr.name] = attr.value
+        }
+
+        return {
+          tag: el.tagName.toLowerCase(),
+          id: el.id || undefined,
+          className: el.className || undefined,
+          text: el.children.length === 0 ? el.textContent?.trim() || undefined : undefined,
+          attrs,
+          children: depth < 5
+            ? Array.from(el.children).map((child) => serializeNode(child, depth + 1))
+            : [],
+        }
+      }
+
+      return serializeNode(root)
+    }, selector)
+  }
+
+  async getAccessibilityTree(selector?: string) {
+    const page = this.requirePage()
+    return page.evaluate((targetSelector) => {
+      const root = targetSelector ? document.querySelector(targetSelector) : document.body
+      if (!root) return null
+
+      function inferRole(el: Element) {
+        const explicitRole = el.getAttribute('role')
+        if (explicitRole) return explicitRole
+
+        const tag = el.tagName.toLowerCase()
+        if (/^h[1-6]$/.test(tag)) return 'heading'
+
+        switch (tag) {
+          case 'a':
+            return el.getAttribute('href') ? 'link' : 'generic'
+          case 'button':
+            return 'button'
+          case 'textarea':
+            return 'textbox'
+          case 'select':
+            return 'combobox'
+          case 'img':
+            return 'img'
+          case 'main':
+            return 'main'
+          case 'nav':
+            return 'navigation'
+          case 'form':
+            return 'form'
+          case 'ul':
+          case 'ol':
+            return 'list'
+          case 'li':
+            return 'listitem'
+          default:
+            break
+        }
+
+        if (tag === 'input') {
+          const type = (el.getAttribute('type') ?? 'text').toLowerCase()
+          if (type === 'checkbox') return 'checkbox'
+          if (type === 'radio') return 'radio'
+          if (['button', 'submit', 'reset'].includes(type)) return 'button'
+          return 'textbox'
+        }
+
+        return 'generic'
+      }
+
+      function inferName(el: Element) {
+        const labelledBy = el.getAttribute('aria-labelledby')
+        if (labelledBy) {
+          const label = labelledBy
+            .split(/\s+/)
+            .map((id) => document.getElementById(id)?.textContent?.trim() ?? '')
+            .filter(Boolean)
+          .join(' ')
+          if (label) return label
+        }
+
+        const directLabel = el.getAttribute('aria-label')
+          ?? el.getAttribute('alt')
+          ?? el.getAttribute('title')
+
+        if (directLabel) return directLabel
+
+        const valueLabel = 'value' in el
+          ? String((el as HTMLInputElement).value || '').trim()
+          : ''
+        if (valueLabel) return valueLabel
+
+        return el.textContent?.trim() || undefined
+      }
+
+      function serializeNode(el: Element, depth = 0): BrowserAccessibilitySnapshot {
+        const children = depth < 5
+          ? Array.from(el.children).map((child) => serializeNode(child, depth + 1))
+          : []
+
+        return {
+          role: inferRole(el),
+          name: inferName(el),
+          disabled: el.hasAttribute('disabled') || undefined,
+          expanded: el.getAttribute('aria-expanded') === 'true' ? true : undefined,
+          selected: el.getAttribute('aria-selected') === 'true' ? true : undefined,
+          checked: el.getAttribute('aria-checked') === 'mixed'
+            ? 'mixed'
+            : el.getAttribute('aria-checked') === 'true'
+              ? true
+              : undefined,
+          children: children.length > 0 ? children : undefined,
+        }
+      }
+
+      return serializeNode(root)
+    }, selector)
   }
 
   async press(key: string) {
