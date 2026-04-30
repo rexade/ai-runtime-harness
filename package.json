@@ -10,15 +10,20 @@
     "dev": "corepack pnpm --dir examples/react-dashboard dev",
     "demo:harness": "node scripts/harness-demo.mjs",
     "demo:platformer": "node scripts/harness-platformer-demo.mjs",
-    "attach:smoke": "node scripts/attach-flow-smoke.mjs"
+    "attach:smoke": "node scripts/attach-flow-smoke.mjs",
+    "package:stage": "node scripts/stage-cli-package.mjs",
+    "package:smoke": "node scripts/package-cli-smoke.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "vitest": "^2.0.0",
     "@testing-library/react": "^16.0.0",
     "jsdom": "^24.0.0",
     "playwright-core": "^1.59.1",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
   },
-  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820"
+  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820",
+  "dependencies": {
+    "ai-runtime-harness": "file:.package/tarballs/ai-runtime-harness-0.1.0.tgz"
+  }
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -246,10 +246,19 @@ async function callTool<T>(client: Client, name: string, args: Record<string, un
 }
 
 function resolveRepoRoot() {
-  return path.resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 }
 
 function resolveMcpServerCommand() {
+  const packagedEntry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'mcp-server.js')
+  if (existsSync(packagedEntry)) {
+    return {
+      command: process.execPath,
+      args: [packagedEntry],
+      cwd: path.dirname(packagedEntry),
+    }
+  }
+
   const repoRoot = resolveRepoRoot()
   const sourceEntry = path.resolve(repoRoot, 'packages/mcp-server/src/index.ts')
 

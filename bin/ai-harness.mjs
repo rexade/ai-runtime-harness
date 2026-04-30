@@ -1,12 +1,20 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const entryPath = path.resolve(repoRoot, 'packages/cli/src/index.ts')
+const packagedEntryPath = path.resolve(repoRoot, 'packages/cli/dist/index.js')
+const packagedPlaywrightPath = path.resolve(repoRoot, 'packages/cli/node_modules/playwright-core/package.json')
+const sourceEntryPath = path.resolve(repoRoot, 'packages/cli/src/index.ts')
 
-const child = spawn(process.execPath, ['--import', 'tsx/esm', entryPath, ...process.argv.slice(2)], {
+const command = process.execPath
+const args = existsSync(packagedEntryPath) && existsSync(packagedPlaywrightPath)
+  ? [packagedEntryPath, ...process.argv.slice(2)]
+  : ['--import', 'tsx/esm', sourceEntryPath, ...process.argv.slice(2)]
+
+const child = spawn(command, args, {
   cwd: repoRoot,
   stdio: 'inherit',
   env: process.env,
