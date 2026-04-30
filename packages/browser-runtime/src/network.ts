@@ -7,6 +7,7 @@ interface MockEntry {
 }
 
 export class NetworkCapture {
+  private readonly NOT_FOUND = Symbol('not-found')
   private events: NetworkEvent[] = []
   private mocks: MockEntry[] = []
   private originalFetch?: typeof window.fetch
@@ -16,9 +17,9 @@ export class NetworkCapture {
     this.mocks.push({ pattern, response })
   }
 
-  getMock(url: string): unknown | null {
+  getMock(url: string): { found: false } | { found: true; response: unknown } {
     const match = this.mocks.find(m => url.includes(m.pattern))
-    return match ? match.response : null
+    return match !== undefined ? { found: true, response: match.response } : { found: false }
   }
 
   logEvent(event: NetworkEvent) {
@@ -31,11 +32,13 @@ export class NetworkCapture {
   }
 
   installFetchInterceptor() {
+    if (this.originalFetch) return // already installed
     this.originalFetch = window.fetch.bind(window)
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      const mock = this.getMock(url)
-      if (mock !== null) {
+      const mockResult = this.getMock(url)
+      if (mockResult.found) {
+        const mock = mockResult.response
         this.logEvent({ url, method: init?.method ?? 'GET', status: 200, duration: 0, responseBody: mock, timestamp: Date.now() })
         return new Response(JSON.stringify(mock), { status: 200, headers: { 'Content-Type': 'application/json' } })
       }

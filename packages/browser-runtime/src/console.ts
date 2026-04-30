@@ -8,6 +8,7 @@ export class ConsoleCapture {
   private originals: Partial<Record<ConsoleEvent['level'], ConsoleFn>> = {}
 
   install() {
+    if (Object.keys(this.originals).length > 0) return // already installed
     const levels: ConsoleEvent['level'][] = ['log', 'warn', 'error', 'info']
     for (const level of levels) {
       this.originals[level] = console[level].bind(console)
