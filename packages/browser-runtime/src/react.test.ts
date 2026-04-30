@@ -3,6 +3,9 @@ import { ReactReader } from './react'
 
 type ReactHookWindow = Window & {
   __REACT_DEVTOOLS_GLOBAL_HOOK__?: {
+    renderers?: Map<number, unknown>
+    supportsFiber?: boolean
+    inject?: (renderer: unknown) => number
     onCommitFiberRoot?: (rendererId: unknown, root: { current: unknown }) => void
   }
 }
@@ -30,6 +33,22 @@ describe('ReactReader', () => {
   it('returns empty array when no fiber root registered', () => {
     const reader = new ReactReader()
     expect(reader.getTree()).toEqual([])
+  })
+
+  it('creates a devtools-compatible hook scaffold', () => {
+    const reader = new ReactReader()
+
+    reader.install()
+
+    const hook = (window as ReactHookWindow).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    expect(hook?.supportsFiber).toBe(true)
+    expect(hook?.renderers).toBeInstanceOf(Map)
+
+    const rendererId = hook?.inject?.({ version: 'test' })
+
+    expect(rendererId).toBe(1)
+    expect(hook?.renderers?.get(1)).toEqual({ version: 'test' })
   })
 
   it('serializes a simple fiber with no children', () => {
@@ -66,5 +85,39 @@ describe('ReactReader', () => {
         children: [],
       },
     ])
+  })
+
+  it('serializes circular values into JSON-safe snapshots', () => {
+    const reader = new ReactReader()
+    const props: Record<string, unknown> = { label: 'hello' }
+    props.self = props
+
+    const stateValue: Record<string, unknown> = { count: 1 }
+    stateValue.self = stateValue
+
+    const fiber = makeFiber('MyComponent', stateValue, props)
+    const result = reader.serializeFiber(fiber as never)
+
+    expect(result).not.toBeNull()
+    expect(result!.props).toEqual({ label: 'hello', self: '[Circular]' })
+    expect(result!.state).toEqual({ count: 1, self: '[Circular]' })
+    expect(() => JSON.stringify(result)).not.toThrow()
+  })
+
+  it('stops traversing cyclic hook lists', () => {
+    const reader = new ReactReader()
+    const first = { memoizedState: 'one', next: null as unknown }
+    const second = { memoizedState: 'two', next: first }
+    first.next = second
+
+    const fiber = {
+      type: { name: 'MyComponent' },
+      memoizedState: first,
+      memoizedProps: {},
+      child: null,
+      sibling: null,
+    }
+
+    expect(reader.serializeFiber(fiber as never)?.state).toEqual(['one', 'two'])
   })
 })

@@ -28,11 +28,38 @@ interface FiberRoot {
 }
 
 interface ReactDevtoolsHook {
-  onCommitFiberRoot?: (rendererId: unknown, root: FiberRoot) => void
+  renderers?: Map<number, unknown>
+  supportsFiber?: boolean
+  inject?: (renderer: unknown) => number
+  onScheduleFiberRoot?: (...args: unknown[]) => void
+  onCommitFiberRoot?: (rendererId: unknown, root: FiberRoot, ...args: unknown[]) => void
+  onCommitFiberUnmount?: (...args: unknown[]) => void
 }
 
 type WindowWithReactHook = Window & {
   __REACT_DEVTOOLS_GLOBAL_HOOK__?: ReactDevtoolsHook
+}
+
+function ensureReactDevtoolsHook(win: WindowWithReactHook): ReactDevtoolsHook {
+  const hook = win.__REACT_DEVTOOLS_GLOBAL_HOOK__ ?? (win.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {})
+
+  hook.renderers ??= new Map()
+  hook.supportsFiber ??= true
+  hook.onScheduleFiberRoot ??= () => {}
+  hook.onCommitFiberUnmount ??= () => {}
+
+  if (!hook.inject) {
+    let nextRendererId = hook.renderers.size + 1
+
+    hook.inject = (renderer: unknown) => {
+      const id = nextRendererId
+      nextRendererId += 1
+      hook.renderers?.set(id, renderer)
+      return id
+    }
+  }
+
+  return hook
 }
 
 export class ReactReader {
@@ -44,12 +71,12 @@ export class ReactReader {
     this.installed = true
 
     const win = window as WindowWithReactHook
-    const hook = win.__REACT_DEVTOOLS_GLOBAL_HOOK__ ?? (win.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {})
+    const hook = ensureReactDevtoolsHook(win)
     const original = hook.onCommitFiberRoot?.bind(hook)
 
-    hook.onCommitFiberRoot = (rendererId: unknown, root: FiberRoot) => {
+    hook.onCommitFiberRoot = (rendererId: unknown, root: FiberRoot, ...args: unknown[]) => {
       this.fiberRoot = root.current
-      original?.(rendererId, root)
+      original?.(rendererId, root, ...args)
     }
   }
 
@@ -63,7 +90,7 @@ export class ReactReader {
 
     return {
       name: componentName,
-      props: fiber.memoizedProps ?? {},
+      props: this.serializeValue(fiber.memoizedProps ?? {}),
       state: this.readState(fiber.memoizedState),
       children: this.collectComponents(fiber.child),
     }
@@ -109,17 +136,57 @@ export class ReactReader {
 
   private readState(state: Fiber['memoizedState']): unknown {
     if (state === null) return null
-    if (!this.isFiberStateNode(state)) return state
+    if (!this.isFiberStateNode(state)) return this.serializeValue(state)
 
     const values: unknown[] = []
+    const visited = new Set<FiberStateNode>()
     let current: FiberStateNode | null = state
-    while (current) {
-      values.push(current.memoizedState)
+    while (current && !visited.has(current)) {
+      visited.add(current)
+      values.push(this.serializeValue(current.memoizedState))
       current = current.next
     }
 
     if (values.length === 0) return null
     return values.length === 1 ? values[0] : values
+  }
+
+  private serializeValue(value: unknown, depth = 0, seen = new WeakSet<object>()): unknown {
+    if (value === null || value === undefined) return value
+
+    const valueType = typeof value
+    if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') return value
+    if (valueType === 'bigint' || valueType === 'symbol') return String(value)
+    if (valueType === 'function') return `[Function ${(value as Function).name || 'anonymous'}]`
+
+    if (value instanceof Date) return value.toISOString()
+    if (value instanceof RegExp) return value.toString()
+    if (typeof Element !== 'undefined' && value instanceof Element) {
+      return `<${value.tagName.toLowerCase()}${value.id ? `#${value.id}` : ''}>`
+    }
+
+    if (Array.isArray(value)) {
+      if (depth >= 4) return `[Array(${value.length})]`
+      return value.map((item) => this.serializeValue(item, depth + 1, seen))
+    }
+
+    if (valueType === 'object') {
+      const record = value as Record<string, unknown>
+      if (seen.has(record)) return '[Circular]'
+      if (depth >= 4) return '[Object]'
+
+      seen.add(record)
+
+      const serialized: Record<string, unknown> = {}
+      for (const [key, nested] of Object.entries(record)) {
+        serialized[key] = this.serializeValue(nested, depth + 1, seen)
+      }
+
+      seen.delete(record)
+      return serialized
+    }
+
+    return String(value)
   }
 
   private isFiberStateNode(state: Fiber['memoizedState']): state is FiberStateNode {

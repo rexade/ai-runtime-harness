@@ -24,6 +24,11 @@ export interface Modules {
   stores: StoresModule
 }
 
+export interface ConnectionOptions {
+  onOpen?: () => void
+  url?: string
+}
+
 export class CommandDispatcher {
   constructor(private mods: Modules) {}
 
@@ -117,9 +122,15 @@ export class CommandDispatcher {
   }
 }
 
-export function connectToServer(dispatcher: CommandDispatcher, url = 'ws://localhost:7777') {
+export function connectToServer(dispatcher: CommandDispatcher, options: ConnectionOptions = {}) {
+  const url = options.url ?? 'ws://localhost:7777'
+
   const connect = () => {
     const ws = new WebSocket(url)
+
+    ws.onopen = () => {
+      options.onOpen?.()
+    }
 
     ws.onmessage = async (event) => {
       const request = JSON.parse(String(event.data)) as HarnessRequest

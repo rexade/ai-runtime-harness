@@ -9,12 +9,12 @@ export function startWsServer(bridge: Bridge, port = 7777): Promise<WebSocketSer
     wss.once('error', reject)
 
     wss.once('listening', () => {
-      console.log(`[AI Harness] WebSocket server listening on ws://localhost:${port}`)
+      console.error(`[AI Harness] WebSocket server listening on ws://localhost:${port}`)
       resolve(wss)
     })
 
     wss.on('connection', (ws: WebSocket) => {
-      console.log('[AI Harness] Browser connected')
+      console.error('[AI Harness] Browser connected')
       bridge.setConnection(ws)
 
       ws.on('message', (data: RawData) => {
@@ -23,7 +23,7 @@ export function startWsServer(bridge: Bridge, port = 7777): Promise<WebSocketSer
       })
 
       ws.on('close', () => {
-        console.log('[AI Harness] Browser disconnected')
+        console.error('[AI Harness] Browser disconnected')
         bridge.clearConnection(ws)
       })
     })

@@ -13,7 +13,7 @@ function notConnected() {
 }
 
 function ok(result: unknown) {
-  return textResult(JSON.stringify(result, null, 2))
+  return textResult(JSON.stringify(result ?? null, null, 2))
 }
 
 export function registerBrowserTools(server: McpServer, bridge: Bridge) {

@@ -53,7 +53,40 @@ describe('aiHarness vite plugin', () => {
     })
 
     expect(contentType).toBe('application/javascript')
+    expect(body).toContain('__AI_HARNESS_CONFIG__')
     expect(body).toContain('/@fs/')
-    expect(body).toContain('browser-runtime/src/index.ts')
+    expect(body).toContain('browser-runtime/src/runtime-entry.ts')
+  })
+
+  it('serializes runtime config into the bootstrap module', () => {
+    const plugin = aiHarness({ autoConnect: true, url: 'ws://localhost:8888' })
+    const configureServer = plugin.configureServer as ((server: {
+      middlewares: {
+        use: (
+          path: string,
+          handler: (_req: unknown, res: { setHeader: (name: string, value: string) => void; end: (body: string) => void }) => void,
+        ) => void
+      }
+    }) => void) | undefined
+    const handlers: Record<string, (_req: unknown, res: { setHeader: (name: string, value: string) => void; end: (body: string) => void }) => void> = {}
+    let body = ''
+
+    configureServer?.({
+      middlewares: {
+        use(path: string, handler: (_req: unknown, res: { setHeader: (name: string, value: string) => void; end: (body: string) => void }) => void) {
+          handlers[path] = handler
+        },
+      },
+    })
+
+    handlers['/@ai-harness/runtime.js']?.({}, {
+      setHeader() {},
+      end(value) {
+        body = value
+      },
+    })
+
+    expect(body).toContain('"autoConnect":true')
+    expect(body).toContain('"url":"ws://localhost:8888"')
   })
 })
