@@ -107,15 +107,23 @@ type ReplayStep = {
 
 ## Package: browser-runtime
 
-Runs **inside the browser page**. Injected by the Vite plugin. Opens a WebSocket on `:7777` that the MCP server connects to.
+Runs **inside the browser page**. Injected by the Vite plugin. Connects to the MCP server WebSocket at `ws://localhost:7777`.
+
+**Connection model:**
+```
+mcp-server starts WebSocket server on localhost:7777
+browser-runtime connects to ws://localhost:7777 as a client
+MCP tools send commands through mcp-server → browser-runtime executes them inside the page
+browser-runtime returns observations/results back through the same connection
+```
 
 **Capabilities:**
 - `dom.ts` — DOM tree serialization, element querying, event dispatch (click, type, scroll, hover)
-- `react.ts` — hooks `__REACT_DEVTOOLS_GLOBAL_HOOK__`, reads React fiber tree (component names, props, state, context)
-- `stores.ts` — auto-detects Zustand stores (via `window.__zustand_stores` convention) and Redux (via DevTools extension protocol); reads full store state
+- `react.ts` — hooks `__REACT_DEVTOOLS_GLOBAL_HOOK__`, reads React fiber tree (component names, props, state, context). Read-only — fiber internals are never written to.
+- `stores.ts` — auto-detects Zustand stores (via `window.__zustand_stores` convention) and Redux (via DevTools extension protocol); reads full store state; dispatches actions through store's own API
 - `network.ts` — wraps `fetch` and `XMLHttpRequest` to log all requests/responses; supports `mock_api(pattern, response)` to intercept and return fake data
 - `console.ts` — wraps `console.log/warn/error` to capture output with timestamps
-- `websocket-client.ts` — WebSocket server (runs in page, listens for commands from MCP server)
+- `websocket-client.ts` — browser-side WebSocket client; connects to MCP server, receives commands, sends results
 
 **Registration (vite.config.ts):**
 ```ts
@@ -208,7 +216,7 @@ export function aiHarness(options): Plugin {
 
 ## Package: mcp-server
 
-Node.js process. Connects to the harness WebSocket (`:7777`). Exposes MCP tools to Claude Code via `claude_code_settings.json`.
+Node.js process. **Owns the WebSocket server on `:7777`** — browser-runtime connects to it as a client. Exposes MCP tools to Claude Code via `claude_code_settings.json`.
 
 **Browser tools:**
 ```
@@ -223,9 +231,11 @@ app.type(selector, text)          → type into input
 app.navigate(url)                 → change URL
 app.scroll(selector, amount)      → scroll
 app.hover(selector)               → hover
-app.mock_api(pattern, response)   → intercept fetch/XHR
-app.set_react_state(name, patch)  → directly patch component state
-app.screenshot()                  → visual fallback
+app.mock_api(pattern, response)      → intercept fetch/XHR
+app.call_action(name, args)          → call a registered app-side debug action
+app.set_store_state(name, patch)     → patch Zustand/Redux store state
+app.dispatch_store_action(name, action) → dispatch action through store's own API
+app.screenshot()                     → visual fallback
 ```
 
 **Game tools:**
@@ -251,18 +261,35 @@ game.set_velocity(id, velocity)   → set entity velocity
 game.apply_force(id, force)       → apply physics force
 game.spawn_entity(type, props)    → create entity
 game.destroy_entity(id)           → remove entity
-game.record_start(name)           → start recording
-game.record_stop()                → stop + save replay
-game.replay(id)                   → replay a saved session
-game.assert(expression)           → assert JS expression against game state
-game.screenshot()                 → visual fallback
+game.record_start(name)                        → start recording
+game.record_stop()                             → stop + save replay
+game.replay(id)                                → replay a saved session
+game.screenshot()                              → visual fallback
 ```
 
-**Disabled by default (unsafe):**
+**Safe structured assertions (default):**
 ```
-runtime.eval(code)                → arbitrary JS in page context
-runtime.patch_module(name, patch) → hot-patch a module
+game.assert_entity_exists(id)                  → entity is present in scene
+game.assert_position_near(id, pos, tolerance)  → position within tolerance
+game.assert_health(id, value)                  → entity health equals value
+game.assert_no_errors()                        → no JS errors since last check
+game.assert_scene(name)                        → current scene matches
 ```
+
+**Opt-in / marked dangerous:**
+```
+game.assert_expression(expression)    → JS expression evaluated against game state
+runtime.eval(code)                    → arbitrary JS in page context
+runtime.patch_module(name, patch)     → hot-patch a module
+```
+
+Unsafe tools require explicit opt-in in vite plugin config (`unsafeEval: true`). They are never enabled by default.
+
+**Design principle:** Read internals. Mutate through stable surfaces.
+- Reading React fiber tree: fine.
+- Writing React fiber tree directly: not in v1.
+- Mutating game state through registered actions/entities: fine.
+- Dispatching through store's own API: fine.
 
 ---
 
