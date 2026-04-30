@@ -1,0 +1,15 @@
+{
+  "name": "ai-runtime-harness",
+  "private": true,
+  "scripts": {
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter react-dashboard dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0",
+    "@testing-library/react": "^16.0.0",
+    "jsdom": "^24.0.0"
+  }
+}

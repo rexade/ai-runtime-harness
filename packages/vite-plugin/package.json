@@ -1,0 +1,21 @@
+{
+  "name": "@ai-runtime-harness/vite-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ai-runtime-harness/browser-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vitest": "*"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0"
+  }
+}
