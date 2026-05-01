@@ -12,7 +12,8 @@
     "demo:platformer": "node scripts/harness-platformer-demo.mjs",
     "attach:smoke": "node scripts/attach-flow-smoke.mjs",
     "package:stage": "node scripts/stage-cli-package.mjs",
-    "package:smoke": "node scripts/package-cli-smoke.mjs"
+    "package:smoke": "node scripts/package-cli-smoke.mjs",
+    "agent:usage:smoke": "node scripts/agent-usage-loop-smoke.mjs"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",
