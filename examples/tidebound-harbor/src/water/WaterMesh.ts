@@ -131,6 +131,10 @@ export class WaterMesh {
     this.material.uniforms.uCrestFoamThreshold.value = crestFoamThreshold
   }
 
+  setRippleStrength(value: number): void {
+    this.material.uniforms.uRippleStrength.value = value
+  }
+
   setSunDirection(degrees: number): void {
     const r = degrees * Math.PI / 180
     const v = (this.material.uniforms.uSunDir.value as THREE.Vector3)

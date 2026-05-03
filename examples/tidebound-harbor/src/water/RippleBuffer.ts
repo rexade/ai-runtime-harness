@@ -22,6 +22,10 @@ export class RippleBuffer {
     this.prev = new Float32Array(this.width * this.height)
   }
 
+  setDamping(value: number): void {
+    this.damping = value
+  }
+
   addImpulse(u: number, v: number, magnitude: number): void {
     const cx = Math.min(this.width - 1, Math.max(0, Math.floor(u * this.width)))
     const cy = Math.min(this.height - 1, Math.max(0, Math.floor(v * this.height)))
