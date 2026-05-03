@@ -28,6 +28,7 @@ export class SceneBootstrap {
   private rafId: number | null = null
   private lastT = 0
   private updateCb: ((dt: number, t: number) => void) | null = null
+  private disposed = false
 
   constructor(private opts: SceneBootstrapOptions) {
     const internalW = opts.internalWidth ?? 480
@@ -88,6 +89,7 @@ export class SceneBootstrap {
   }
 
   start(): void {
+    if (this.disposed) return
     if (this.rafId !== null) return
     this.lastT = performance.now() / 1000
     const loop = () => {
@@ -118,6 +120,7 @@ export class SceneBootstrap {
     this.blitMesh.geometry.dispose()
     ;(this.blitMesh.material as THREE.Material).dispose()
     this.renderer.dispose()
+    this.disposed = true
   }
 
   private handleResize = (): void => {
@@ -126,6 +129,7 @@ export class SceneBootstrap {
     if (!parent) return
     const w = parent.clientWidth
     const h = parent.clientHeight
+    if (w === 0 || h === 0) return
     this.renderer.setSize(w, h, false)
   }
 }
