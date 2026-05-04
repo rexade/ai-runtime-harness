@@ -65,7 +65,9 @@ export class PlaygroundScene {
     this.boat = new BoatActor({
       object: boatLoaded.object,
       field: this.field,
-      orbitRadius: 5.5,
+      orbitCenterX: 6,
+      orbitCenterZ: -2,
+      orbitRadius: 3,
       orbitPeriodSec: 18,
       wakeIntervalSec: 0.18,
       wakeIntensity: 0.45,

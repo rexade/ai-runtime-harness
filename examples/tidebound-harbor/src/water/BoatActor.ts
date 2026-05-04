@@ -5,6 +5,8 @@ import { floatPose } from './Buoyancy'
 export interface BoatActorOptions {
   object: THREE.Object3D
   field: WaterField
+  orbitCenterX?: number
+  orbitCenterZ?: number
   orbitRadius: number
   orbitPeriodSec: number
   wakeIntervalSec: number
@@ -19,7 +21,9 @@ export class BoatActor {
   private halfWidth = 0.4
 
   constructor(private opts: BoatActorOptions) {
-    this.opts.object.position.set(opts.orbitRadius, 0, 0)
+    const cx = opts.orbitCenterX ?? 0
+    const cz = opts.orbitCenterZ ?? 0
+    this.opts.object.position.set(cx + opts.orbitRadius, 0, cz)
     this.lastPos.copy(this.opts.object.position)
   }
 
@@ -27,13 +31,15 @@ export class BoatActor {
     this.timeAccum = t
     const omega = (Math.PI * 2) / this.opts.orbitPeriodSec
     const angle = this.timeAccum * omega
-    const x = Math.cos(angle) * this.opts.orbitRadius
-    const z = Math.sin(angle) * this.opts.orbitRadius
+    const cx = this.opts.orbitCenterX ?? 0
+    const cz = this.opts.orbitCenterZ ?? 0
+    const x = cx + Math.cos(angle) * this.opts.orbitRadius
+    const z = cz + Math.sin(angle) * this.opts.orbitRadius
     const heading = Math.atan2(-Math.sin(angle), Math.cos(angle)) // tangent
 
     const pose = floatPose(this.opts.field, t, { x, z }, this.halfLength, this.halfWidth)
     this.opts.object.position.set(x, pose.height + 0.05, z)
-    this.opts.object.rotation.set(pose.roll, heading + Math.PI / 2, pose.pitch)
+    this.opts.object.rotation.set(pose.roll, heading - Math.PI / 2, pose.pitch)
 
     this.wakeAccum += dt
     if (this.wakeAccum >= this.opts.wakeIntervalSec) {

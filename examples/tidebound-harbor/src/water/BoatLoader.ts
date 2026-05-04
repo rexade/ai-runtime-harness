@@ -34,11 +34,24 @@ export async function loadKenneySailboatA(baseUrl: string = '/kenney_watercraft/
   obj.scale.setScalar(scale)
   obj.position.y = 0
 
-  // disable shadow contributions; let pixelate handle look
+  // Replace MTL-produced lit materials with MeshBasicMaterial so the boat reads
+  // its colormap texture without requiring scene lights (the rest of the
+  // playground uses MeshBasicMaterial; lit materials would render black here).
   obj.traverse((node) => {
     if (node instanceof THREE.Mesh) {
       node.castShadow = false
       node.receiveShadow = false
+      const src = node.material
+      const replace = (m: THREE.Material): THREE.MeshBasicMaterial => {
+        const lit = m as THREE.MeshPhongMaterial & { map?: THREE.Texture | null }
+        const basic = new THREE.MeshBasicMaterial({
+          map: lit.map ?? null,
+          color: lit.color ?? new THREE.Color(0xffffff),
+        })
+        m.dispose()
+        return basic
+      }
+      node.material = Array.isArray(src) ? src.map(replace) : replace(src as THREE.Material)
     }
   })
 
