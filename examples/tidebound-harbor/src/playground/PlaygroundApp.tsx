@@ -6,7 +6,10 @@ export function PlaygroundApp() {
   const sceneRef = useRef<PlaygroundScene | null>(null)
   const url = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
   const initialPreset = (url.get('preset') === 'storm' ? 'storm' : 'calm') as 'calm' | 'storm'
-  const initialDebug = Math.max(0, Math.min(3, Number(url.get('debug') ?? '0'))) as 0 | 1 | 2 | 3
+  const debugRaw = Number(url.get('debug') ?? '0')
+  const initialDebug = (Number.isFinite(debugRaw)
+    ? Math.max(0, Math.min(3, Math.trunc(debugRaw)))
+    : 0) as 0 | 1 | 2 | 3
   const [preset, setPreset] = useState<'calm' | 'storm'>(initialPreset)
   const [debug, setDebug] = useState<0 | 1 | 2 | 3>(initialDebug)
 
@@ -16,11 +19,15 @@ export function PlaygroundApp() {
     const scene = new PlaygroundScene()
     sceneRef.current = scene
     let cancelled = false
-    scene.mount(canvas).catch((err) => {
-      console.error('Playground mount failed', err)
-    }).then(() => {
-      if (cancelled) scene.dispose()
-    })
+    scene.mount(canvas).then(
+      () => {
+        if (cancelled) scene.dispose()
+      },
+      (err) => {
+        console.error('Playground mount failed', err)
+        scene.dispose()
+      },
+    )
     return () => {
       cancelled = true
       scene.dispose()
