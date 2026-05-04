@@ -15,6 +15,7 @@ export class PlaygroundScene {
   private boat: BoatActor | null = null
   private boatDispose: (() => void) | null = null
   private preset: WaterPreset = CALM
+  private cancelled = false
 
   async mount(canvas: HTMLCanvasElement): Promise<void> {
     this.bootstrap = new SceneBootstrap({
@@ -55,6 +56,10 @@ export class PlaygroundScene {
     this.bootstrap.scene.add(this.mesh.mesh)
 
     const boatLoaded = await loadKenneySailboatA('/kenney_watercraft/')
+    if (this.cancelled) {
+      boatLoaded.dispose()
+      return
+    }
     this.boatDispose = boatLoaded.dispose
     this.bootstrap.scene.add(boatLoaded.object)
     this.boat = new BoatActor({
@@ -94,6 +99,7 @@ export class PlaygroundScene {
   }
 
   dispose(): void {
+    this.cancelled = true
     this.bootstrap?.stop()
     this.boatDispose?.()
     this.mesh?.dispose()
