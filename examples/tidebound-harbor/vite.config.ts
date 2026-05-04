@@ -15,7 +15,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
-    entries: ['index.html', 'playground.html'],
+    entries: ['index.html', 'harbor.html', 'playground.html'],
   },
   server: {
     host: '127.0.0.1',
@@ -26,6 +26,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        harbor: resolve(__dirname, 'harbor.html'),
         playground: resolve(__dirname, 'playground.html'),
       },
     },
