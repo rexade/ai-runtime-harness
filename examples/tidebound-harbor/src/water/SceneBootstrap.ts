@@ -14,7 +14,7 @@ export interface SceneBootstrapOptions {
   internalWidth?: number   // default 480
   internalHeight?: number  // default 270
   worldHalfExtent?: number // default 12
-  clearColor?: number      // default 0x081016
+  clearColor?: number      // default 0x4a637a
 }
 
 export class SceneBootstrap {
@@ -37,7 +37,7 @@ export class SceneBootstrap {
 
     this.renderer = new THREE.WebGLRenderer({ canvas: opts.canvas, antialias: false })
     this.renderer.setPixelRatio(1)
-    this.renderer.setClearColor(opts.clearColor ?? 0x081016, 1)
+    this.renderer.setClearColor(opts.clearColor ?? 0x4a637a, 1)
 
     this.scene = new THREE.Scene()
 

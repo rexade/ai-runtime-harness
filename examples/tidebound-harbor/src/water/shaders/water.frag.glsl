@@ -40,11 +40,11 @@ void main() {
   //    Use the shore SDF as a proxy: deeper offshore = larger SDF value.
   float shoreDist = texture2D(uShoreSDF, vUV).r;
 
-  // 2. Banded depth color (3 bands)
+  // 2. Banded depth color (3 bands tuned for a 12-unit basin so mid teal dominates the open water)
   vec3 base;
-  if (shoreDist < 0.6) {
+  if (shoreDist < 1.4) {
     base = uPaletteShallow;
-  } else if (shoreDist < 2.4) {
+  } else if (shoreDist < 5.0) {
     base = uPaletteMid;
   } else {
     base = uPaletteDeep;
@@ -52,7 +52,7 @@ void main() {
 
   // 3. Banded toon shading from analytical normal (2 bands)
   float ndl = max(dot(vNormalW, normalize(uSunDir)), 0.0);
-  float shade = ndl > 0.55 ? 1.0 : (ndl > 0.25 ? 0.78 : 0.6);
+  float shade = ndl > 0.55 ? 1.0 : (ndl > 0.25 ? 0.88 : 0.78);
   vec3 lit = base * shade;
 
   // 4. Shore foam — narrow band at the water/land boundary
