@@ -11,6 +11,12 @@ export default defineConfig({
       networkCapture: true,
     }),
   ],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    entries: ['index.html', 'playground.html'],
+  },
   server: {
     host: '127.0.0.1',
     port: 5190,
