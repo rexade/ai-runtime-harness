@@ -370,7 +370,7 @@ func _draw_prop_item(item: Dictionary) -> void:
 		_draw_missing_cube_placeholder(anchor, String(prop["kind"]))
 		return
 	var tex_size := texture.get_size() * SPRITE_ART_DISPLAY_ZOOM
-	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - 1.0)
+	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - SPRITE_ART_DISPLAY_ZOOM)
 	_terrain_sprite_layer.draw_texture_rect(texture, Rect2(top_left, tex_size), false)
 
 
@@ -383,7 +383,7 @@ func _draw_actor_item(item: Dictionary) -> void:
 	if tex == null:
 		return
 	var tex_size := tex.get_size() * SPRITE_ART_DISPLAY_ZOOM
-	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - 1.0)
+	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - SPRITE_ART_DISPLAY_ZOOM)
 	var flip_h := _player_should_face_left()
 	var draw_rect := Rect2(top_left, tex_size)
 	if flip_h:
@@ -899,7 +899,10 @@ func _rebuild_layout() -> void:
 	_columns = _make_validation_layout_columns()
 	_index_columns()
 	_build_3d_scene()
-	_apply_validation_case(DEFAULT_VALIDATION_CASE)
+	if _layout_mode == LAYOUT_SPRITE_VALIDATION:
+		_apply_validation_case(DEFAULT_VALIDATION_CASE)
+	elif _layout_mode == LAYOUT_ARENA:
+		_player_pos = HarborArenaLayoutScript.SPAWN_POINT
 	_set_visual_view_mode(_visual_view_mode)
 
 
