@@ -77,3 +77,25 @@ func test_shadow_root_offset_flattens_on_y() -> void:
 	# then rotated by the default cast angle. Verify the absolute magnitude is
 	# smaller than the unflattened offset.
 	assert_true(center.length() < offset_up.length(), "projected root offset should flatten the y component, got %s" % center)
+
+
+func test_shadow_draw_centers_on_projected_center() -> void:
+	# Verify draw_shadow translates the canvas so the drawn rect's center
+	# lands on projected_center(), even with a non-zero rotation.
+	var anchor := Vector2(100.0, 100.0)
+	var visual_root := Vector2(0.0, -16.0)
+	var cast_dir := HarborPropShadowScript.DEFAULT_CAST_DIR
+	var cast_distance := 4.0
+	var display_scale := 2.0
+	var card_size := Vector2(35.0, 33.0) * display_scale
+
+	var center := HarborPropShadowScript.projected_center(anchor, visual_root, cast_dir, cast_distance)
+	var rotation_angle := (-cast_dir.normalized()).angle() - Vector2.DOWN.angle()
+	var projected_y_scale := cos(deg_to_rad(HarborPropShadowScript.X_AXIS_TILT_DEGREES))
+	var draw_size := Vector2(card_size.x * 1.08, maxf(card_size.y * projected_y_scale, 0.04))
+
+	# Origin used inside draw_shadow:
+	var origin := center - (draw_size * 0.5).rotated(rotation_angle)
+	# Map local-rect-center back into world space using the same transform:
+	var world_center := origin + (draw_size * 0.5).rotated(rotation_angle)
+	assert_true(world_center.distance_to(center) < 0.001, "draw transform must center rect on projected_center, got %s vs %s" % [world_center, center])

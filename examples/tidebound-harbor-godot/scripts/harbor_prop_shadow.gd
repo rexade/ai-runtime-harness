@@ -42,7 +42,7 @@ static func draw_shadow(
 	var card_size := texture.get_size() * display_scale
 	var draw_size := Vector2(card_size.x * 1.08, maxf(card_size.y * projected_y_scale, 0.04))
 	var modulate_color := Color(SHADOW_TINT.r, SHADOW_TINT.g, SHADOW_TINT.b, clampf(opacity * SHADOW_OPACITY_SCALE, 0.0, 1.0))
-	var transform := Transform2D(rotation_angle, Vector2.ONE, 0.0, center - draw_size * 0.5)
+	var transform := Transform2D(rotation_angle, Vector2.ONE, 0.0, center - (draw_size * 0.5).rotated(rotation_angle))
 	canvas.draw_set_transform_matrix(transform)
 	canvas.draw_texture_rect(texture, Rect2(Vector2.ZERO, draw_size), false, modulate_color)
 	canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
