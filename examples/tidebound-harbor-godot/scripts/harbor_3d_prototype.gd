@@ -212,13 +212,13 @@ func _draw_world_sprites() -> void:
 	if not _camera:
 		return
 	var items: Array[Dictionary] = []
-	_collect_terrain_items(items)
+	_collect_world_sprite_items(items)
 	items.sort_custom(_world_sprite_sort)
 	for item in items:
 		_draw_world_sprite_item(item)
 
 
-func _collect_terrain_items(items: Array[Dictionary]) -> void:
+func _collect_world_sprite_items(items: Array[Dictionary]) -> void:
 	for column in _columns:
 		var cell: Vector2i = column["cell"]
 		var height := int(column["height"])
@@ -228,6 +228,16 @@ func _collect_terrain_items(items: Array[Dictionary]) -> void:
 		elif height > 0:
 			for z in range(height):
 				items.append({"layer": "terrain", "cell": cell, "kind": kind, "z": z, "sort_bias": 0.0})
+	for prop in _props:
+		var prop_cell: Vector2i = prop["cell"]
+		var anchor_z := _height_at_cell(prop_cell)
+		items.append({
+			"layer": "prop",
+			"cell": prop_cell,
+			"anchor_z": anchor_z,
+			"sort_bias": float(prop.get("sort_bias", 0.0)),
+			"prop": prop,
+		})
 
 
 func _world_sprite_sort(a: Dictionary, b: Dictionary) -> bool:
@@ -261,7 +271,9 @@ func _draw_world_sprite_item(item: Dictionary) -> void:
 	match item["layer"]:
 		"terrain":
 			_draw_terrain_item(item)
-		# shadow / prop / actor layers added in later tasks
+		"prop":
+			_draw_prop_item(item)
+		# shadow / actor layers added in later tasks
 		_:
 			pass
 
@@ -282,6 +294,73 @@ func _draw_terrain_item(item: Dictionary) -> void:
 		_draw_missing_cube_placeholder(anchor, kind)
 		if _sprite_debug_overlay_enabled:
 			_draw_sprite_debug_overlay(cell, kind, z, anchor, anchor - Vector2(17.5, 32.0) * SPRITE_ART_DISPLAY_ZOOM, Vector2(35.0, 33.0) * SPRITE_ART_DISPLAY_ZOOM)
+
+
+func _draw_prop_item(item: Dictionary) -> void:
+	var prop: Dictionary = item["prop"]
+	var cell: Vector2i = item["cell"]
+	var anchor_z: int = item["anchor_z"]
+	var anchor := _sprite_art_screen_position(grid_to_world(float(cell.x), float(cell.y), float(anchor_z)))
+	var anchor_offset: Vector2 = prop.get("anchor_offset", Vector2.ZERO)
+	anchor += anchor_offset * SPRITE_ART_DISPLAY_ZOOM
+	if String(prop["kind"]) == "bonfire":
+		_draw_bonfire_at(anchor)
+		return
+	var texture := _prop_texture(prop)
+	if texture == null:
+		_draw_missing_cube_placeholder(anchor, String(prop["kind"]))
+		return
+	var tex_size := texture.get_size() * SPRITE_ART_DISPLAY_ZOOM
+	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - 1.0)
+	_terrain_sprite_layer.draw_texture_rect(texture, Rect2(top_left, tex_size), false)
+
+
+func _draw_bonfire_at(anchor: Vector2) -> void:
+	var s := SPRITE_ART_DISPLAY_ZOOM
+	# Stone ring (low, flattened ellipse).
+	var ring_color := Color("#6e6358")
+	_terrain_sprite_layer.draw_circle(anchor, 9.0 * s, ring_color)
+	_terrain_sprite_layer.draw_circle(anchor + Vector2(0.0, -1.0 * s), 7.0 * s, Color("#3b342c"))
+	# Log triangles (two crossed).
+	var log_color := Color("#5a3a22")
+	_terrain_sprite_layer.draw_polygon(
+		PackedVector2Array([
+			anchor + Vector2(-6.0, -2.0) * s,
+			anchor + Vector2(6.0, -4.0) * s,
+			anchor + Vector2(-5.0, -1.0) * s,
+		]),
+		PackedColorArray([log_color, log_color, log_color])
+	)
+	_terrain_sprite_layer.draw_polygon(
+		PackedVector2Array([
+			anchor + Vector2(6.0, -2.0) * s,
+			anchor + Vector2(-6.0, -4.0) * s,
+			anchor + Vector2(5.0, -1.0) * s,
+		]),
+		PackedColorArray([log_color, log_color, log_color])
+	)
+	# Flame polygon (orange outer + yellow inner core).
+	var flame_outer := Color("#e96a2c")
+	var flame_inner := Color("#ffd24a")
+	_terrain_sprite_layer.draw_colored_polygon(
+		PackedVector2Array([
+			anchor + Vector2(0.0, -16.0) * s,
+			anchor + Vector2(5.0, -8.0) * s,
+			anchor + Vector2(2.0, -3.0) * s,
+			anchor + Vector2(-2.0, -3.0) * s,
+			anchor + Vector2(-5.0, -8.0) * s,
+		]),
+		flame_outer
+	)
+	_terrain_sprite_layer.draw_colored_polygon(
+		PackedVector2Array([
+			anchor + Vector2(0.0, -11.0) * s,
+			anchor + Vector2(2.0, -7.0) * s,
+			anchor + Vector2(0.0, -4.0) * s,
+			anchor + Vector2(-2.0, -7.0) * s,
+		]),
+		flame_inner
+	)
 
 
 func _sprite_art_screen_position(world_pos: Vector3) -> Vector2:
