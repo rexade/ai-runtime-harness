@@ -3,6 +3,7 @@ extends Node3D
 const PLAYER_TEXTURE := preload("res://assets/townfolk-headphones-idle.png")
 const HarborBlockMaterialsScript := preload("res://scripts/harbor_block_materials.gd")
 const HarborArenaLayoutScript := preload("res://scripts/harbor_arena_layout.gd")
+const HarborPropShadowScript := preload("res://scripts/harbor_prop_shadow.gd")
 
 const SOURCE_BLOCK_SIZE := Vector2i(35, 33)
 const TARGET_FULL_BLOCK_PIXELS := Vector2(35.0, 33.0)
@@ -231,6 +232,14 @@ func _collect_world_sprite_items(items: Array[Dictionary]) -> void:
 	for prop in _props:
 		var prop_cell: Vector2i = prop["cell"]
 		var anchor_z := _height_at_cell(prop_cell)
+		if bool(prop.get("shadow", true)):
+			items.append({
+				"layer": "shadow",
+				"cell": prop_cell,
+				"anchor_z": anchor_z,
+				"sort_bias": float(prop.get("sort_bias", 0.0)),
+				"prop": prop,
+			})
 		items.append({
 			"layer": "prop",
 			"cell": prop_cell,
@@ -271,9 +280,11 @@ func _draw_world_sprite_item(item: Dictionary) -> void:
 	match item["layer"]:
 		"terrain":
 			_draw_terrain_item(item)
+		"shadow":
+			_draw_shadow_item(item)
 		"prop":
 			_draw_prop_item(item)
-		# shadow / actor layers added in later tasks
+		# actor layer added in Task 11
 		_:
 			pass
 
@@ -294,6 +305,31 @@ func _draw_terrain_item(item: Dictionary) -> void:
 		_draw_missing_cube_placeholder(anchor, kind)
 		if _sprite_debug_overlay_enabled:
 			_draw_sprite_debug_overlay(cell, kind, z, anchor, anchor - Vector2(17.5, 32.0) * SPRITE_ART_DISPLAY_ZOOM, Vector2(35.0, 33.0) * SPRITE_ART_DISPLAY_ZOOM)
+
+
+func _draw_shadow_item(item: Dictionary) -> void:
+	var prop: Dictionary = item["prop"]
+	var cell: Vector2i = item["cell"]
+	var anchor_z: int = item["anchor_z"]
+	var anchor := _sprite_art_screen_position(grid_to_world(float(cell.x), float(cell.y), float(anchor_z)))
+	var anchor_offset: Vector2 = prop.get("anchor_offset", Vector2.ZERO)
+	anchor += anchor_offset * SPRITE_ART_DISPLAY_ZOOM
+	if String(prop["kind"]) == "bonfire":
+		# Bonfire is drawn procedurally with its own light/ground bias; skip projected shadow.
+		return
+	var texture := _prop_texture(prop)
+	if texture == null:
+		return
+	HarborPropShadowScript.draw_shadow(
+		_terrain_sprite_layer,
+		texture,
+		anchor,
+		Vector2.ZERO,
+		SPRITE_ART_DISPLAY_ZOOM,
+		HarborPropShadowScript.DEFAULT_CAST_DIR,
+		4.0,
+		1.0
+	)
 
 
 func _draw_prop_item(item: Dictionary) -> void:
