@@ -514,8 +514,7 @@ func _build_hud() -> void:
 
 
 func _update_player_nodes() -> void:
-	var surface_height := _height_at_cell(_cell_at_pos(_player_pos))
-	var feet := grid_to_world(_player_pos.x, _player_pos.y, float(surface_height)) + Vector3(0.0, 0.015, 0.0)
+	var feet := _player_world_pos() + Vector3(0.0, 0.015, 0.0)
 	_player_shadow.position = feet
 	_player_shadow.visible = _shadows_enabled
 	_player_card.position = feet + Vector3(0.0, PLAYER_CARD_SIZE.y * 0.5, 0.0)
@@ -535,7 +534,7 @@ func _update_hud() -> void:
 		return
 	var cell := _cell_at_pos(_player_pos)
 	var surface_height := _height_at_cell(cell)
-	var feet_world := grid_to_world(_player_pos.x, _player_pos.y, float(surface_height))
+	var feet_world := _player_world_pos()
 	var block_measure := _projected_block_top_measure()
 	var full_block_measure := _projected_full_block_measure()
 	_hud.text = "Harbor3DPrototype: 3D logical world + 2D iso cube sprites\nView=%s  Layout=%s  Sprite debug=%s  Case=%s\nGrid=%s  world=%s  surface=%d  logical cube=1x1x1\nCamera yaw=%.1f elevation=%.1f ortho=%.1f  sprite display zoom=%.1fx\nSprite target %.0fx%.0f px -> %.1fx%.1f px | top target %.0fx%.0f px -> %.1fx%.1f px\nF1 proxy. F2 sprite art. F3 validation layout. F4 anchors/bounds. Keys 1-6 validation." % [
@@ -677,6 +676,14 @@ func _is_player_cell_walkable(cell: Vector2i, surface_height: int) -> bool:
 
 func grid_to_world(x: float, y: float, h: float) -> Vector3:
 	return Vector3(x * BLOCK_SIZE, h * BLOCK_HEIGHT, y * BLOCK_SIZE)
+
+
+func _height_at_player_pos(pos: Vector2) -> float:
+	return float(_height_at_cell(_cell_at_pos(pos)))
+
+
+func _player_world_pos() -> Vector3:
+	return grid_to_world(_player_pos.x, _player_pos.y, _height_at_player_pos(_player_pos))
 
 
 func _camera_position_for(yaw_degrees: float, elevation_degrees: float, distance: float, target: Vector3) -> Vector3:
