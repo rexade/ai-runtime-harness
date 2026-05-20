@@ -50,8 +50,6 @@ var _player_heading := 0.0
 var _player_speed := 0.0
 var _animation_time := 0.0
 var _camera: Camera3D
-var _player_card: MeshInstance3D
-var _player_shadow: MeshInstance3D
 var _player_frame_texture_cache: Texture2D
 var _sun_light: DirectionalLight3D
 var _fill_light: DirectionalLight3D
@@ -121,8 +119,6 @@ func _clear_children() -> void:
 	_terrain_proxy_root = null
 	_debug_markers = null
 	_hud = null
-	_player_card = null
-	_player_shadow = null
 
 
 func _build_world_environment() -> void:
@@ -247,6 +243,18 @@ func _collect_world_sprite_items(items: Array[Dictionary]) -> void:
 			"sort_bias": float(prop.get("sort_bias", 0.0)),
 			"prop": prop,
 		})
+	items.append({
+		"layer": "shadow",
+		"actor": "player",
+		"world_pos": _player_world_pos(),
+		"sort_bias": -0.001,
+	})
+	items.append({
+		"layer": "actor",
+		"actor": "player",
+		"world_pos": _player_world_pos(),
+		"sort_bias": 0.0,
+	})
 
 
 func _world_sprite_sort(a: Dictionary, b: Dictionary) -> bool:
@@ -266,7 +274,13 @@ func _sort_primary(item: Dictionary) -> float:
 		"terrain":
 			var cell: Vector2i = item["cell"]
 			return float(cell.x + cell.y) + float(item["z"]) * 2.0
-		"shadow", "prop":
+		"shadow":
+			if item.has("world_pos"):
+				var wp_s: Vector3 = item["world_pos"]
+				return wp_s.x + wp_s.z + wp_s.y * 2.0
+			var cell_s: Vector2i = item["cell"]
+			return float(cell_s.x + cell_s.y) + float(item["anchor_z"]) * 2.0
+		"prop":
 			var cell2: Vector2i = item["cell"]
 			return float(cell2.x + cell2.y) + float(item["anchor_z"]) * 2.0
 		"actor":
@@ -281,10 +295,14 @@ func _draw_world_sprite_item(item: Dictionary) -> void:
 		"terrain":
 			_draw_terrain_item(item)
 		"shadow":
-			_draw_shadow_item(item)
+			if item.has("actor"):
+				_draw_actor_shadow_item(item)
+			else:
+				_draw_shadow_item(item)
 		"prop":
 			_draw_prop_item(item)
-		# actor layer added in Task 11
+		"actor":
+			_draw_actor_item(item)
 		_:
 			pass
 
@@ -349,6 +367,43 @@ func _draw_prop_item(item: Dictionary) -> void:
 	var tex_size := texture.get_size() * SPRITE_ART_DISPLAY_ZOOM
 	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - 1.0)
 	_terrain_sprite_layer.draw_texture_rect(texture, Rect2(top_left, tex_size), false)
+
+
+func _draw_actor_item(item: Dictionary) -> void:
+	if String(item["actor"]) != "player":
+		return
+	var wp: Vector3 = item["world_pos"]
+	var anchor := _sprite_art_screen_position(wp)
+	var tex := _player_frame_texture()
+	if tex == null:
+		return
+	var tex_size := tex.get_size() * SPRITE_ART_DISPLAY_ZOOM
+	var top_left := anchor - Vector2(tex_size.x * 0.5, tex_size.y - 1.0)
+	var flip_h := _player_should_face_left()
+	var draw_rect := Rect2(top_left, tex_size)
+	if flip_h:
+		draw_rect = Rect2(top_left + Vector2(tex_size.x, 0.0), Vector2(-tex_size.x, tex_size.y))
+	_terrain_sprite_layer.draw_texture_rect(tex, draw_rect, false)
+
+
+func _draw_actor_shadow_item(item: Dictionary) -> void:
+	if String(item["actor"]) != "player":
+		return
+	var wp: Vector3 = item["world_pos"]
+	var anchor := _sprite_art_screen_position(Vector3(wp.x, _height_at_player_pos(_player_pos), wp.z))
+	var tex := _player_frame_texture()
+	if tex == null:
+		return
+	HarborPropShadowScript.draw_shadow(
+		_terrain_sprite_layer,
+		tex,
+		anchor,
+		Vector2.ZERO,
+		SPRITE_ART_DISPLAY_ZOOM,
+		HarborPropShadowScript.DEFAULT_CAST_DIR,
+		3.0,
+		1.0
+	)
 
 
 func _draw_bonfire_at(anchor: Vector2) -> void:
@@ -448,24 +503,7 @@ func _draw_missing_cube_placeholder(anchor: Vector2, kind: String) -> void:
 
 
 func _build_player() -> void:
-	_player_shadow = MeshInstance3D.new()
-	_player_shadow.name = "PlayerFeetShadow"
-	var shadow_mesh := CylinderMesh.new()
-	shadow_mesh.top_radius = PLAYER_COLLISION_RADIUS * 1.15
-	shadow_mesh.bottom_radius = PLAYER_COLLISION_RADIUS * 1.15
-	shadow_mesh.height = 0.01
-	shadow_mesh.radial_segments = 24
-	_player_shadow.mesh = shadow_mesh
-	_player_shadow.material_override = _plain_material(Color(0.02, 0.03, 0.025, 0.34), false)
-	add_child(_player_shadow)
-
-	_player_card = MeshInstance3D.new()
-	_player_card.name = "PlayerSprite3D"
-	var quad := QuadMesh.new()
-	quad.size = PLAYER_CARD_SIZE
-	_player_card.mesh = quad
-	_player_card.material_override = _player_material()
-	add_child(_player_card)
+	pass
 
 
 func _build_debug_markers() -> void:
@@ -514,19 +552,7 @@ func _build_hud() -> void:
 
 
 func _update_player_nodes() -> void:
-	var feet := _player_world_pos() + Vector3(0.0, 0.015, 0.0)
-	_player_shadow.position = feet
-	_player_shadow.visible = _shadows_enabled
-	_player_card.position = feet + Vector3(0.0, PLAYER_CARD_SIZE.y * 0.5, 0.0)
-	_face_camera_horizontally(_player_card)
-
-
-func _face_camera_horizontally(node: Node3D) -> void:
-	if not _camera:
-		return
-	var target := _camera.global_position
-	target.y = node.global_position.y
-	node.look_at(target, Vector3.UP)
+	pass
 
 
 func _update_hud() -> void:
@@ -686,6 +712,10 @@ func _player_world_pos() -> Vector3:
 	return grid_to_world(_player_pos.x, _player_pos.y, _height_at_player_pos(_player_pos))
 
 
+func _player_should_face_left() -> bool:
+	return cos(_player_heading) < 0.0
+
+
 func _camera_position_for(yaw_degrees: float, elevation_degrees: float, distance: float, target: Vector3) -> Vector3:
 	var yaw := deg_to_rad(yaw_degrees)
 	var elevation := deg_to_rad(elevation_degrees)
@@ -835,8 +865,6 @@ func _set_shadows_enabled(enabled: bool) -> void:
 	_shadows_enabled = enabled
 	if _sun_light:
 		_sun_light.shadow_enabled = _shadows_enabled
-	if _player_shadow:
-		_player_shadow.visible = _shadows_enabled
 	for shadow in get_tree().get_nodes_in_group("stylized_contact_shadow"):
 		if shadow is Node3D:
 			shadow.visible = _shadows_enabled
@@ -891,18 +919,6 @@ func _prop_texture(prop: Dictionary) -> Texture2D:
 	var tex: Texture2D = load(asset)
 	_prop_texture_cache[asset] = tex
 	return tex
-
-
-func _player_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = _player_frame_texture()
-	mat.albedo_color = Color.WHITE
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	mat.alpha_scissor_threshold = 0.10
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return mat
 
 
 func _player_frame_texture() -> Texture2D:
