@@ -76,10 +76,13 @@ var _keys := {
 func _ready() -> void:
 	_columns = _make_validation_layout_columns()
 	_props = HarborArenaLayoutScript.props()
+	if _layout_mode == LAYOUT_ARENA:
+		_player_pos = HarborArenaLayoutScript.SPAWN_POINT
 	_index_columns()
 	_ensure_input_map()
 	_build_3d_scene()
-	_apply_validation_case(DEFAULT_VALIDATION_CASE)
+	if _layout_mode == LAYOUT_SPRITE_VALIDATION:
+		_apply_validation_case(DEFAULT_VALIDATION_CASE)
 	set_process(true)
 	set_process_input(true)
 
@@ -91,7 +94,9 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_animation_time += delta
-	if DEFAULT_VALIDATION_CASE == 0:
+	if _layout_mode == LAYOUT_ARENA:
+		_update_player(delta)
+	elif _layout_mode == LAYOUT_SPRITE_VALIDATION and _active_case == "free walk":
 		_update_player(delta)
 	_update_player_nodes()
 	if _terrain_sprite_layer:
