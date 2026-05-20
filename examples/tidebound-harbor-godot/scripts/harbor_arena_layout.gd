@@ -4,7 +4,7 @@ extends RefCounted
 ## Hand-authored arena content for harbor_3d_prototype.gd's LAYOUT_ARENA mode.
 ## Coordinates: grid cells with +x east, +y south. Heights: 0=water, 1=walkable surface.
 
-const SPAWN_POINT := Vector2(-2.0, 0.0)
+const SPAWN_POINT := Vector2(0.0, 0.0)
 const PLAYER_CLAMP_MIN := Vector2(-9.5, -9.5)
 const PLAYER_CLAMP_MAX := Vector2(9.5, 9.5)
 
