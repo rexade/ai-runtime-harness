@@ -39,7 +39,9 @@ const SPRITE_ART_DISPLAY_ZOOM := 2.0
 
 var _columns: Array[Dictionary] = []
 var _column_lookup := {}
-var _shed_props: Array[Dictionary] = []
+var _props: Array[Dictionary] = []
+var _prop_texture_cache := {}
+var _last_blocked_cell: Vector2i = Vector2i(99999, 99999)  # sentinel "no recent blocker"
 var _player_pos := Vector2(-3.0, 2.0)
 var _player_velocity := Vector2.ZERO
 var _player_heading := 0.0
@@ -73,10 +75,8 @@ var _keys := {
 
 func _ready() -> void:
 	_columns = _make_validation_layout_columns()
+	_props = HarborArenaLayoutScript.props()
 	_index_columns()
-	_shed_props = [
-		{"cell": Vector2i(3, 0), "height": 1, "footprint": Vector2i(2, 2), "block_height": 2.4},
-	]
 	_ensure_input_map()
 	_build_3d_scene()
 	_apply_validation_case(DEFAULT_VALIDATION_CASE)
@@ -105,7 +105,6 @@ func _build_3d_scene() -> void:
 	_build_camera()
 	_build_lights()
 	_build_terrain()
-	_build_sheds()
 	_build_player()
 	_build_debug_markers()
 	_build_hud()
@@ -298,30 +297,6 @@ func _draw_missing_cube_placeholder(anchor: Vector2, kind: String) -> void:
 	_terrain_sprite_layer.draw_colored_polygon(top, base.lightened(0.12))
 
 
-func _build_sheds() -> void:
-	var shed_root := Node3D.new()
-	shed_root.name = "Buildings"
-	add_child(shed_root)
-	for prop in _shed_props:
-		var cell: Vector2i = prop.get("cell", Vector2i.ZERO)
-		var footprint: Vector2i = prop.get("footprint", Vector2i.ONE)
-		var base_height := _height_at_cell(cell)
-		var building_height := float(prop.get("block_height", 2.0))
-		var body := MeshInstance3D.new()
-		body.name = "Shed_%d_%d" % [cell.x, cell.y]
-		var body_size := Vector3(float(footprint.x) * BLOCK_SIZE, building_height * BLOCK_HEIGHT, float(footprint.y) * BLOCK_SIZE)
-		body.mesh = _block_materials.block_mesh("building_wall", body_size)
-		body.position = grid_to_world(float(cell.x), float(cell.y), float(base_height)) + Vector3(0.0, body_size.y * 0.5, 0.0)
-		shed_root.add_child(body)
-		_add_building_contact_shadow(shed_root, body.position, Vector2(body_size.x, body_size.z), float(base_height))
-		var roof := MeshInstance3D.new()
-		roof.name = "ShedRoof_%d_%d" % [cell.x, cell.y]
-		var roof_size := Vector3(body_size.x + 0.18, 0.34 * BLOCK_HEIGHT, body_size.z + 0.18)
-		roof.mesh = _block_materials.block_mesh("building_roof", roof_size)
-		roof.position = body.position + Vector3(0.0, body_size.y * 0.5 + roof_size.y * 0.5, 0.0)
-		shed_root.add_child(roof)
-
-
 func _build_player() -> void:
 	_player_shadow = MeshInstance3D.new()
 	_player_shadow.name = "PlayerFeetShadow"
@@ -463,6 +438,7 @@ func _update_player(delta: float) -> void:
 func _move_player_with_slide(target_pos: Vector2) -> void:
 	if _is_player_pos_walkable(target_pos):
 		_player_pos = target_pos
+		_last_blocked_cell = Vector2i(99999, 99999)
 		return
 	var x_target := Vector2(target_pos.x, _player_pos.y)
 	if _is_player_pos_walkable(x_target):
@@ -522,15 +498,30 @@ func _is_player_pos_walkable(pos: Vector2) -> bool:
 	return true
 
 
+func _cell_blocked_by_prop(cell: Vector2i) -> Dictionary:
+	for p in _props:
+		if not bool(p.get("blocks", true)):
+			continue
+		var anchor: Vector2i = p["cell"]
+		var footprint: Array = p.get("footprint", [Vector2i.ZERO])
+		for offset in footprint:
+			if anchor + offset == cell:
+				return p
+	return {}
+
+
 func _is_player_cell_walkable(cell: Vector2i, surface_height: int) -> bool:
 	var cell_height := _height_at_cell(cell)
 	if cell_height <= 0:
 		return false
 	if absi(cell_height - surface_height) > PLAYER_MAX_STEP_HEIGHT:
 		return false
-	for prop in _shed_props:
-		if _footprint_cells(prop.get("cell", Vector2i.ZERO), prop.get("footprint", Vector2i.ONE)).has(cell):
-			return false
+	var blocker := _cell_blocked_by_prop(cell)
+	if not blocker.is_empty():
+		if cell != _last_blocked_cell:
+			_last_blocked_cell = cell
+			print_debug("player_blocked_by_prop cell=%s kind=%s" % [cell, blocker.get("kind", "?")])
+		return false
 	return true
 
 
@@ -732,6 +723,17 @@ func _apply_visual_view_mode() -> void:
 		_sun_light.visible = not sprite_art
 	if _fill_light:
 		_fill_light.visible = not sprite_art
+
+
+func _prop_texture(prop: Dictionary) -> Texture2D:
+	var asset: String = prop.get("asset", "")
+	if asset == "":
+		return null
+	if _prop_texture_cache.has(asset):
+		return _prop_texture_cache[asset]
+	var tex: Texture2D = load(asset)
+	_prop_texture_cache[asset] = tex
+	return tex
 
 
 func _player_material() -> StandardMaterial3D:
