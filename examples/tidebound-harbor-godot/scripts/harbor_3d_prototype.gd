@@ -36,6 +36,7 @@ const VIEW_PROXY_DEBUG := "proxy debug"
 const LAYOUT_ARENA := "arena"
 const LAYOUT_SPRITE_VALIDATION := "sprite validation"
 const SPRITE_ART_DISPLAY_ZOOM := 2.0
+const LAYER_ORDER := {"terrain": 0, "shadow": 1, "prop": 2, "actor": 2}
 
 var _columns: Array[Dictionary] = []
 var _column_lookup := {}
@@ -174,7 +175,7 @@ func _build_terrain() -> void:
 	_terrain_sprite_layer = Node2D.new()
 	_terrain_sprite_layer.name = "TerrainSpriteCubes"
 	_terrain_sprite_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_terrain_sprite_layer.draw.connect(_draw_terrain_sprite_cubes)
+	_terrain_sprite_layer.draw.connect(_draw_world_sprites)
 	add_child(_terrain_sprite_layer)
 
 	var proxy_root := Node3D.new()
@@ -207,46 +208,80 @@ func _add_proxy_block(parent: Node, cell: Vector2i, kind: String, z: int) -> voi
 	parent.add_child(block)
 
 
-func _draw_terrain_sprite_cubes() -> void:
+func _draw_world_sprites() -> void:
 	if not _camera:
 		return
 	var items: Array[Dictionary] = []
+	_collect_terrain_items(items)
+	items.sort_custom(_world_sprite_sort)
+	for item in items:
+		_draw_world_sprite_item(item)
+
+
+func _collect_terrain_items(items: Array[Dictionary]) -> void:
 	for column in _columns:
 		var cell: Vector2i = column["cell"]
 		var height := int(column["height"])
 		var kind := String(column.get("kind", "grass"))
 		if _block_materials.is_water_kind(kind):
-			items.append({"cell": cell, "kind": kind, "z": 0})
+			items.append({"layer": "terrain", "cell": cell, "kind": kind, "z": 0, "sort_bias": 0.0})
 		elif height > 0:
 			for z in range(height):
-				items.append({"cell": cell, "kind": kind, "z": z})
-	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var ac: Vector2i = a["cell"]
-		var bc: Vector2i = b["cell"]
-		var az := int(a["z"])
-		var bz := int(b["z"])
-		var ad := ac.x + ac.y + az * 2
-		var bd := bc.x + bc.y + bz * 2
-		if ad == bd:
-			return ac.y < bc.y if ac.x == bc.x else ac.x < bc.x
-		return ad < bd
-	)
-	for item in items:
-		var cell: Vector2i = item["cell"]
-		var kind := String(item["kind"])
-		var z := int(item["z"])
-		var texture := _block_materials.cube_sprite_texture(kind)
-		var anchor := _sprite_art_screen_position(grid_to_world(float(cell.x), float(cell.y), float(z)))
-		if texture:
-			var size := texture.get_size() * SPRITE_ART_DISPLAY_ZOOM
-			var top_left := anchor - Vector2(float(texture.get_width()) * 0.5, float(texture.get_height()) - 1.0) * SPRITE_ART_DISPLAY_ZOOM
-			_terrain_sprite_layer.draw_texture_rect(texture, Rect2(top_left, size), false)
-			if _sprite_debug_overlay_enabled:
-				_draw_sprite_debug_overlay(cell, kind, z, anchor, top_left, size)
-		else:
-			_draw_missing_cube_placeholder(anchor, kind)
-			if _sprite_debug_overlay_enabled:
-				_draw_sprite_debug_overlay(cell, kind, z, anchor, anchor - Vector2(17.5, 32.0) * SPRITE_ART_DISPLAY_ZOOM, Vector2(35.0, 33.0) * SPRITE_ART_DISPLAY_ZOOM)
+				items.append({"layer": "terrain", "cell": cell, "kind": kind, "z": z, "sort_bias": 0.0})
+
+
+func _world_sprite_sort(a: Dictionary, b: Dictionary) -> bool:
+	var ap := _sort_primary(a)
+	var bp := _sort_primary(b)
+	if not is_equal_approx(ap, bp):
+		return ap < bp
+	var al := int(LAYER_ORDER.get(a["layer"], 0))
+	var bl := int(LAYER_ORDER.get(b["layer"], 0))
+	if al != bl:
+		return al < bl
+	return float(a.get("sort_bias", 0.0)) < float(b.get("sort_bias", 0.0))
+
+
+func _sort_primary(item: Dictionary) -> float:
+	match item["layer"]:
+		"terrain":
+			var cell: Vector2i = item["cell"]
+			return float(cell.x + cell.y) + float(item["z"]) * 2.0
+		"shadow", "prop":
+			var cell2: Vector2i = item["cell"]
+			return float(cell2.x + cell2.y) + float(item["anchor_z"]) * 2.0
+		"actor":
+			var wp: Vector3 = item["world_pos"]
+			return wp.x + wp.z + wp.y * 2.0
+		_:
+			return 0.0
+
+
+func _draw_world_sprite_item(item: Dictionary) -> void:
+	match item["layer"]:
+		"terrain":
+			_draw_terrain_item(item)
+		# shadow / prop / actor layers added in later tasks
+		_:
+			pass
+
+
+func _draw_terrain_item(item: Dictionary) -> void:
+	var cell: Vector2i = item["cell"]
+	var kind := String(item["kind"])
+	var z := int(item["z"])
+	var texture := _block_materials.cube_sprite_texture(kind)
+	var anchor := _sprite_art_screen_position(grid_to_world(float(cell.x), float(cell.y), float(z)))
+	if texture:
+		var size := texture.get_size() * SPRITE_ART_DISPLAY_ZOOM
+		var top_left := anchor - Vector2(float(texture.get_width()) * 0.5, float(texture.get_height()) - 1.0) * SPRITE_ART_DISPLAY_ZOOM
+		_terrain_sprite_layer.draw_texture_rect(texture, Rect2(top_left, size), false)
+		if _sprite_debug_overlay_enabled:
+			_draw_sprite_debug_overlay(cell, kind, z, anchor, top_left, size)
+	else:
+		_draw_missing_cube_placeholder(anchor, kind)
+		if _sprite_debug_overlay_enabled:
+			_draw_sprite_debug_overlay(cell, kind, z, anchor, anchor - Vector2(17.5, 32.0) * SPRITE_ART_DISPLAY_ZOOM, Vector2(35.0, 33.0) * SPRITE_ART_DISPLAY_ZOOM)
 
 
 func _sprite_art_screen_position(world_pos: Vector3) -> Vector2:
