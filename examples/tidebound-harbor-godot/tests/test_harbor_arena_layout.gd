@@ -99,3 +99,28 @@ func test_shadow_draw_centers_on_projected_center() -> void:
 	# Map local-rect-center back into world space using the same transform:
 	var world_center := origin + (draw_size * 0.5).rotated(rotation_angle)
 	assert_true(world_center.distance_to(center) < 0.001, "draw transform must center rect on projected_center, got %s vs %s" % [world_center, center])
+
+
+func test_props_buoy_is_non_blocking() -> void:
+	var found_buoy := false
+	for p in HarborArenaLayoutScript.props():
+		if p["kind"] == "buoy":
+			assert_false(bool(p.get("blocks", true)), "buoy must be blocks=false (lives in water)")
+			found_buoy = true
+	assert_true(found_buoy, "buoy prop missing from props()")
+
+
+func test_props_all_other_props_block() -> void:
+	for p in HarborArenaLayoutScript.props():
+		if p["kind"] == "buoy":
+			continue
+		assert_true(bool(p.get("blocks", true)), "%s must block, got blocks=%s" % [p["kind"], p.get("blocks", true)])
+
+
+func test_props_assets_resolve() -> void:
+	for p in HarborArenaLayoutScript.props():
+		var asset_path: String = p["asset"]
+		if asset_path == "":
+			assert_eq(p["kind"], "bonfire", "only bonfire may have an empty asset path")
+			continue
+		assert_true(ResourceLoader.exists(asset_path), "asset %s missing for prop %s" % [asset_path, p["kind"]])

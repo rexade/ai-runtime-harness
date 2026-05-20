@@ -24,7 +24,92 @@ static func columns() -> Array[Dictionary]:
 
 
 static func props() -> Array[Dictionary]:
-	return []  # filled in Task 5
+	return [
+		# 1. Boat sailing at the dock head.
+		{
+			"kind": "boat",
+			"cell": Vector2i(6, 0),
+			"footprint": [Vector2i.ZERO],
+			"height_world": 1.2,
+			"anchor_offset": Vector2(0.0, 0.0),
+			"sort_bias": 0.05,
+			"asset": "res://assets/boat-sail-a.png",
+			"shadow": true,
+			"blocks": true,
+		},
+		# 2. Buoy floating just past the dock.
+		{
+			"kind": "buoy",
+			"cell": Vector2i(8, -1),
+			"footprint": [Vector2i.ZERO],
+			"height_world": 0.9,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.0,
+			"asset": "res://assets/buoy-flag.png",
+			"shadow": true,
+			"blocks": false,
+		},
+		# 3. Lookout Tower on the south sand ridge.
+		{
+			"kind": "building_lookout",
+			"cell": Vector2i(-1, 2),
+			"footprint": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)],
+			"height_world": 3.4,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.1,
+			"asset": "res://assets/stranded-buildings/Lookout Tower.png",
+			"shadow": true,
+			"blocks": true,
+		},
+		# 4. Shed on the north grass.
+		{
+			"kind": "building_shed",
+			"cell": Vector2i(1, -2),
+			"footprint": [Vector2i(0, 0), Vector2i(1, 0)],
+			"height_world": 1.6,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.05,
+			"asset": "res://assets/stranded-buildings/Shed.png",
+			"shadow": true,
+			"blocks": true,
+		},
+		# 5. Tall palm tree at the SW corner of the grass.
+		{
+			"kind": "palm_tree_tall",
+			"cell": Vector2i(-3, 3),
+			"footprint": [Vector2i.ZERO],
+			"height_world": 2.6,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.05,
+			"asset": "res://assets/tree-palm-tall.png",
+			"shadow": true,
+			"blocks": true,
+		},
+		# 6. Short palm tree near the dock approach.
+		{
+			"kind": "palm_tree_short",
+			"cell": Vector2i(3, 1),
+			"footprint": [Vector2i.ZERO],
+			"height_world": 1.9,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.05,
+			"asset": "res://assets/tree-palm-short.png",
+			"shadow": true,
+			"blocks": true,
+		},
+		# 7. Bonfire on the central clearing. No PNG -- drawn procedurally.
+		{
+			"kind": "bonfire",
+			"cell": Vector2i(-2, 0),
+			"footprint": [Vector2i.ZERO],
+			"height_world": 0.6,
+			"anchor_offset": Vector2.ZERO,
+			"sort_bias": 0.05,
+			"asset": "",
+			"shadow": true,
+			"blocks": true,
+		},
+	]
 
 
 static func _classify_cell(cell: Vector2i) -> Dictionary:
